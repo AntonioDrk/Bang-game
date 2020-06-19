@@ -39,5 +39,8 @@ MonoBehaviour:
   - RPC_DisableCamera
   - RPC_SetPlayerSeat
   - RPC_SetSpawnIndex
+  - RPC_AddCardToPlayerHand
+  - RemoveCardFromPlayerHand
+  - RPC_RemoveCardFromPlayerHand
   DisableAutoOpenWizard: 1
   ShowSettings: 0

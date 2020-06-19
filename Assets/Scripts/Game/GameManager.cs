@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Game.Cards;
+using Photon.Pun;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -169,7 +170,7 @@ public class GameManager : MonoBehaviour
     private void GenerateDrawCard(PlayableCard card)
     {
         GameObject cardObject = Instantiate(cardPrefab);
-        
+
         drawPileCards.Add(card);
         drawPileObjects.Add(cardObject);
         
@@ -240,6 +241,10 @@ public class GameManager : MonoBehaviour
     public void PlayCard(PlayableCard cardLogic, GameObject cardObject)
     {
         // TODO:Check the card Logic, execute the action
+        
+        // If we play the card, we lose ownership of it, it become neutral
+        cardObject.GetComponent<PhotonView>().TransferOwnership(0);
+        
         // Move the card to the discard pile
         discardPileCards.Insert(0, cardLogic);
         discardPileObjects.Insert(0, cardObject);

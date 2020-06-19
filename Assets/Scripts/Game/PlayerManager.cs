@@ -64,8 +64,9 @@ public class PlayerManager : MonoBehaviour
 
     private void Update()
     {
-        if ( _playerCardActions && !_photonView.IsMine) return;
-        
+        if ( _playerCardActions) return;
+        if(_photonView.IsMine == false) return;
+
         bool mouseInScreen = true;
         
         // Trying to make so the game doesn't register mouse inputs from outside the game window.
@@ -120,8 +121,11 @@ public class PlayerManager : MonoBehaviour
             
             // If we click on the object with the tag DrawPile we then add a random card to hand
             if (hit.transform.gameObject.CompareTag("DrawPile") && Input.GetMouseButtonDown(0))
-                // TODO: The card that we draw is from a predefined List that is shuffled
-                AddCardToPlayerHand();
+            {
+                //RPC_AddCardToPlayerHand();
+                _photonView.RPC("RPC_AddCardToPlayerHand", RpcTarget.All);
+            }
+                
             
             //_objectHit = hit.transform.gameObject;
         }
@@ -150,11 +154,18 @@ public class PlayerManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Move the card to the middle of the screen
+    /// Move the card to the middle of the screen and present the player two buttons, one to play the card,
+    /// one to put the card back in hand
     /// </summary>
     /// <param name="cardToMove">Card to be moved</param>
     private void MoveCardToMiddleScreen(GameObject cardToMove)
     {
+        // Check to see if the card we're moving to the middle is ours
+        if(cardToMove.GetComponent<PhotonView>().IsMine == false)
+            return;
+        
+        Debug.LogWarning("Moveing card to the middle of the screen for client " + _photonView.Owner.ActorNumber);
+
         // TODO: cut the function to fewer lines
         BoxCollider cardColl = cardToMove.GetComponent<BoxCollider>();
         if (cardColl is null)
@@ -168,9 +179,10 @@ public class PlayerManager : MonoBehaviour
         
         cardObjectLogic.ShowActionBtns(true);
         Button exitCardBtn = cardObjectLogic.GetExitButton();
-        if(!(exitCardBtn is null))
+        if(exitCardBtn is null == false)
             exitCardBtn.onClick.AddListener(() =>
             {
+                //TODO: Transform this into a RPC function, call that function here instead
                 _playerCardActions = false;
                 int index = playableCardsObjects.FindIndex(o => o.gameObject == cardToMove);
                 if(index >= 0)
@@ -178,9 +190,11 @@ public class PlayerManager : MonoBehaviour
             });
 
         Button playCardBtn = cardObjectLogic.GetPlayButton();
-        if (!(playCardBtn is null))
+        if (playCardBtn is null == false)
             playCardBtn.onClick.AddListener(() =>
             {
+                //TODO: Transform this into a RPC function, call that function here instead
+                
                 _playerCardActions = false;
                 cardObjectLogic.ShowActionBtns(false);
                 
@@ -188,7 +202,10 @@ public class PlayerManager : MonoBehaviour
                 if (index >= 0)
                 {
                     gameManager.PlayCard(playableCards[index], cardToMove);
-                    RemoveCardFromPlayerHand(playableCards[index], index);
+                    //RPC_RemoveCardFromPlayerHand(playableCards[index], index);
+                    // Remove the card from this player on all clients
+                    _photonView.RPC("RPC_RemoveCardFromPlayerHand", RpcTarget.All, index);
+                    
                 }
             });
         _playerCardActions = true;
@@ -196,6 +213,9 @@ public class PlayerManager : MonoBehaviour
 
     private void MoveCardUp(GameObject cardToMove)
     {
+        // Check to see if the card we're moving up is ours
+        if(cardToMove.GetComponent<PhotonView>().IsMine == false)
+            return;
         // Pull the card up on hovering
         cardToMove.transform.localPosition = new Vector3(cardToMove.transform.localPosition.x, CardYMovement, CardZMovement);
 
@@ -212,11 +232,16 @@ public class PlayerManager : MonoBehaviour
     /// <param name="positionInArray">The index of the position in the array of the object</param>
     private void MoveCardDownInHand(GameObject cardToMove, int positionInArray)
     {
+        // Check to see if the card we're moving down is ours
+        if(cardToMove.GetComponent<PhotonView>().IsMine == false)
+            return;
+        
         // Makes sure it hides the action buttons when it gets back in hand
         cardToMove.GetComponent<CardObjectLogic>().ShowActionBtns(false);
         
         // If the object wasn't hit by the raycast, reset the position and the scaling of the collider
-        cardToMove.transform.localPosition = new Vector3(CardXOffset * positionInArray, positionInArray * CardYOffset , 0);
+        cardToMove.transform.localPosition = new Vector3(CardXOffset * positionInArray, 
+            positionInArray * CardYOffset , 0);
         
         // Reducing the amount of calls for "GetComponent", expensive operation
         BoxCollider objectCollider = cardToMove.GetComponent<BoxCollider>();
@@ -225,10 +250,12 @@ public class PlayerManager : MonoBehaviour
         
     }
 
+    
     /// <summary>
     /// Adds a card to the player hand
     /// </summary>
-    public void AddCardToPlayerHand()
+    [PunRPC]
+    public void RPC_AddCardToPlayerHand()
     {
         // TODO: This should not be called here!
         Tuple<PlayableCard, GameObject> tuple = gameManager.DrawFromDrawPile();
@@ -236,6 +263,8 @@ public class PlayerManager : MonoBehaviour
         PlayableCard card = tuple.Item1;
         GameObject instantiatedCard = tuple.Item2;
         
+        // Transfering the ownership of the card to the player who drew the card
+        instantiatedCard.GetComponent<PhotonView>().TransferOwnership(_photonView.Owner);
         instantiatedCard.transform.SetParent(handTransform, false);
         
         // Add the info into the list of cards
@@ -279,19 +308,28 @@ public class PlayerManager : MonoBehaviour
             handTransformStartPos + new Vector3(HandXOffset * (playableCardsObjects.Count - 1), 0, 0);
     }
 
-    private void RemoveCardFromPlayerHand(PlayableCard cardToRemove, int index = -1)
+    /// <summary>
+    /// Removes the cached card from the player
+    /// </summary>
+    /// <param name="cardToRemove">The card logic to remove</param>
+    /// <param name="index">It's index in the vector</param>
+    [PunRPC]
+    private void RPC_RemoveCardFromPlayerHand(int index)
     {
-        if (cardToRemove is null) return;
-
-        if(index == -1)
-            index = playableCards.FindIndex(c=> c == cardToRemove);
-
-        if (index < 0)
+        if (index < 0 || index >= playableCards.Count)
         {
-            Debug.LogError("The card to be removed has not been found");
+            Debug.LogError("Index out of bounds");
             return;
         }
-        
+
+        PlayableCard cardToRemove = playableCards[index];
+
+        if (cardToRemove == null)
+        {
+            Debug.LogError("No card to remove was found");
+            return;
+        }
+
         handTransform.position -= new Vector3(HandXOffset, 0, 0);
         
         // Remove the card obj from the hand list
