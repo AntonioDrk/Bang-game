@@ -15,7 +15,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject cardPrefab;
     [SerializeField] private Transform drawPileContainer;
     [SerializeField] private int numberOfDrawCards;
-    
+    [SerializeField] private PhotonView _photonView;
+    [SerializeField] private int _generatedSeed;
+
     private CharacterCard[] characterCards;
     private ActionCard[] actionCards;
     private WeaponCard[] weaponCards;
@@ -26,6 +28,9 @@ public class GameManager : MonoBehaviour
     private List<PlayableCard> discardPileCards = new List<PlayableCard>();
     private List<GameObject> discardPileObjects = new List<GameObject>();
 
+    private int currentTurn = 0;
+
+    
     /// <summary>
     /// Loads the character cards from the "characters" json file
     /// </summary>
@@ -80,6 +85,18 @@ public class GameManager : MonoBehaviour
         cardDistributions = JsonHelper.getJsonArray<CardDistribution>(data.text);
 
         return cardDistributions;
+    }
+
+    public int GetPlayerTurnId()
+    {
+        return GameSetup.setup.playerSeats[currentTurn];
+    }
+
+    [PunRPC]
+    public void NextTurn()
+    {
+        currentTurn++;
+        currentTurn %= GameSetup.setup.playerSeats.Length;
     }
 
     /// <summary>
@@ -326,15 +343,39 @@ public class GameManager : MonoBehaviour
             MoveCardObjectToDrawPile(drawPileObjects[randomInd], randomInd);
         }
     }
-
-    private void Start()
+    
+    /// <summary>
+    /// Setup function for the GameManager, use this instead of classic "Start()" function
+    /// Used for synchronising the start params of the script
+    /// </summary>
+    /// <param name="seed">The seed of the pseudo random generator </param>
+    [PunRPC]
+    private void RPC_RunSetup(int seed)
     {
+        Random.InitState(seed);
+        _generatedSeed = seed;
+        
+        Debug.LogWarning("My gamemanager seed is: " + _generatedSeed);
+        
         LoadCharacterCards();
         LoadActionCards();
         GeneratePlayableCards();
         ShuffleDrawPile();
-        //GenerateRandomDrawCards(NumberOfDrawCards);
-        
     }
 
+    private void Awake()
+    {
+        // Sets on all the clients the same seed for the random function
+        // This way, any random operations as shuffling will have the same output on all clients
+        if (PhotonNetwork.IsMasterClient) // Gamemanager is a scene owned object, only the "master" client should make the rpc call to the others
+        {
+            _generatedSeed = Random.Range(int.MinValue, int.MaxValue);
+            _photonView.RPC("RPC_RunSetup", RpcTarget.AllBuffered, _generatedSeed);
+        }
+    }
+
+    private void Start()
+    {
+        //GenerateRandomDrawCards(NumberOfDrawCards);
+    }
 }

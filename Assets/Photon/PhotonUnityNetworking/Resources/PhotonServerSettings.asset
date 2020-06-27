@@ -42,5 +42,15 @@ MonoBehaviour:
   - RPC_AddCardToPlayerHand
   - RemoveCardFromPlayerHand
   - RPC_RemoveCardFromPlayerHand
+  - RPC_OnPlayBtnPressed
+  - RPC_OnCancelBtnPressed
+  - SetSeed
+  - RPC_SetSeed
+  - RPC_setup
+  - RPC_Setup
+  - RPC_RunSetup
+  - SetNamePlate
+  - SetNamePlayerBoard
+  - NextTurn
   DisableAutoOpenWizard: 1
   ShowSettings: 0

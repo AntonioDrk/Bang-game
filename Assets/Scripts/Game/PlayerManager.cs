@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using Photon.Pun;
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -42,6 +43,8 @@ public class PlayerManager : MonoBehaviour
     [SerializeField] private GameManager gameManager;
 
     [SerializeField] private Transform handTransform;
+
+    [SerializeField] private GameObject playerBoardCanvas;
     
     private GameObject _lastObjectHitPersistent;
     private GameObject _objectHit;
@@ -50,7 +53,13 @@ public class PlayerManager : MonoBehaviour
 
     private void Start()
     {
+        StartChecks();
         handTransformStartPos = handTransform.localPosition;
+        _photonView.RPC("SetNamePlayerBoard", RpcTarget.AllBuffered, _photonView.Owner.NickName);
+    }
+
+    private void StartChecks()
+    {
         _photonView = gameObject.GetComponent<PhotonView>();
         if (_photonView == null)
         {
@@ -60,10 +69,15 @@ public class PlayerManager : MonoBehaviour
         gameManager = GameObject.FindGameObjectWithTag("GameManager").GetComponent<GameManager>();
         if(gameManager == null)
             Debug.LogError("Game manager couldn't be found!");
+        
+        if(playerBoardCanvas == null)
+            Debug.LogError("Player board canvas isn't set, make sure you set it in the inspector!");
     }
 
     private void Update()
     {
+        //TODO: REFACTOR Split the functionality
+        
         if ( _playerCardActions) return;
         if(_photonView.IsMine == false) return;
 
@@ -123,6 +137,7 @@ public class PlayerManager : MonoBehaviour
             if (hit.transform.gameObject.CompareTag("DrawPile") && Input.GetMouseButtonDown(0))
             {
                 //RPC_AddCardToPlayerHand();
+                //TODO: Check if he can hold any more cards
                 _photonView.RPC("RPC_AddCardToPlayerHand", RpcTarget.All);
             }
                 
@@ -177,16 +192,15 @@ public class PlayerManager : MonoBehaviour
         cardToMove.transform.localPosition = new Vector3(CardXOffset * (playableCardsObjects.Count / 2) ,CardYMovement, CardZMovement);
         CardObjectLogic cardObjectLogic = cardToMove.GetComponent<CardObjectLogic>();
         
+        int index = playableCardsObjects.FindIndex(o => o.gameObject == cardToMove);
+        
         cardObjectLogic.ShowActionBtns(true);
         Button exitCardBtn = cardObjectLogic.GetExitButton();
         if(exitCardBtn is null == false)
             exitCardBtn.onClick.AddListener(() =>
             {
                 //TODO: Transform this into a RPC function, call that function here instead
-                _playerCardActions = false;
-                int index = playableCardsObjects.FindIndex(o => o.gameObject == cardToMove);
-                if(index >= 0)
-                    MoveCardDownInHand(cardToMove, index);
+                _photonView.RPC("RPC_OnPlayBtnPressed", RpcTarget.All, index);
             });
 
         Button playCardBtn = cardObjectLogic.GetPlayButton();
@@ -194,21 +208,40 @@ public class PlayerManager : MonoBehaviour
             playCardBtn.onClick.AddListener(() =>
             {
                 //TODO: Transform this into a RPC function, call that function here instead
-                
-                _playerCardActions = false;
-                cardObjectLogic.ShowActionBtns(false);
-                
-                int index = playableCardsObjects.FindIndex(o => o.gameObject == cardToMove);
-                if (index >= 0)
-                {
-                    gameManager.PlayCard(playableCards[index], cardToMove);
-                    //RPC_RemoveCardFromPlayerHand(playableCards[index], index);
-                    // Remove the card from this player on all clients
-                    _photonView.RPC("RPC_RemoveCardFromPlayerHand", RpcTarget.All, index);
-                    
-                }
+                _photonView.RPC("RPC_OnCancelBtnPressed", RpcTarget.All, index);
             });
         _playerCardActions = true;
+    }
+    
+    /// <summary>
+    /// Function that gets called as an RPC when one of the players plays their card
+    /// </summary>
+    /// <param name="index">Index of the card about to play in the playableCards vector</param>
+    [PunRPC]
+    private void RPC_OnPlayBtnPressed(int index)
+    {
+        _playerCardActions = false;
+                
+        if(index >= 0)
+            MoveCardDownInHand(playableCardsObjects[index], index);
+        else
+            Debug.LogError("Card to play wasn't found in the playableCards vector");
+    }
+
+    [PunRPC]
+    private void RPC_OnCancelBtnPressed(int index)
+    {
+        _playerCardActions = false;
+        playableCardsObjects[index].GetComponent<CardObjectLogic>().ShowActionBtns(false);
+                
+        if (index >= 0)
+        {
+            gameManager.PlayCard(playableCards[index], playableCardsObjects[index]);
+            //RPC_RemoveCardFromPlayerHand(playableCards[index], index);
+            // Remove the card from this player on all clients
+            //_photonView.RPC("RPC_RemoveCardFromPlayerHand", RpcTarget.All, index);
+            RPC_RemoveCardFromPlayerHand(index);
+        }
     }
 
     private void MoveCardUp(GameObject cardToMove)
@@ -250,6 +283,13 @@ public class PlayerManager : MonoBehaviour
         
     }
 
+    [PunRPC]
+    public void SetNamePlayerBoard(string value)
+    {
+        // Gets the textmeshpro of the title of the player board
+        playerBoardCanvas.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = value;
+    }
+    
     
     /// <summary>
     /// Adds a card to the player hand
