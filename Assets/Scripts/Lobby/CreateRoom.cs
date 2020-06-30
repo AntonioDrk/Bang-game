@@ -26,7 +26,7 @@ public class CreateRoom : MonoBehaviourPunCallbacks
             }
             else
             {
-                //TODO:Display an error message to the user
+                CanvasManager.Instance.ShowPopup(CanvasManager.Instance.ErrorTitle, CanvasManager.Instance.EmptyRoomNameErrorMsg);
             }
 
         }
@@ -38,6 +38,6 @@ public class CreateRoom : MonoBehaviourPunCallbacks
 
     public override void OnCreateRoomFailed(short returnCode, string message)
     {
-        // TODO: Display error message to the user
+        CanvasManager.Instance.ShowPopup(CanvasManager.Instance.ErrorTitle, message);
     }
 }

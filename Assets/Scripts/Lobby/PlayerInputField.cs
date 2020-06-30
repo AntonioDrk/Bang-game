@@ -15,7 +15,7 @@ public class PlayerInputField : MonoBehaviour
     void Start()
     {
         string defaultName = string.Empty;
-        InputField inputField = this.GetComponent<InputField>();
+        InputField inputField = GetComponent<InputField>();
         if(inputField != null)
         {
             if (PlayerPrefs.HasKey(playerNamePrefKey))
@@ -32,7 +32,6 @@ public class PlayerInputField : MonoBehaviour
     {
         if (string.IsNullOrEmpty(value))
         {
-            Debug.LogError("Player name is null or empty!");
             return;
         }
 

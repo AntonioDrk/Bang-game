@@ -9,6 +9,12 @@ public class RoomListedItem : MonoBehaviour
 
     public void OnClickRoomListedItem()
     {
+        if (string.IsNullOrEmpty(PhotonNetwork.NickName) || string.IsNullOrWhiteSpace(PhotonNetwork.NickName))
+        {
+            CanvasManager.Instance.ShowPopup(CanvasManager.Instance.ErrorTitle, CanvasManager.Instance.EmptyNickNameErrorMsg);
+            return;
+        }
+        
         if(_roomName != null && !string.IsNullOrWhiteSpace(_roomName.text))
         {
             PhotonNetwork.JoinRoom(_roomName.text);

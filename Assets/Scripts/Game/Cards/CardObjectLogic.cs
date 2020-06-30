@@ -1,4 +1,5 @@
 ﻿using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,15 +9,15 @@ public class CardObjectLogic : MonoBehaviour
     /// <summary>
     /// Text object that represents the title of the card on the canvas
     /// </summary>
-    [SerializeField] private Text cardTitleReference;
+    [SerializeField] private TextMeshProUGUI cardTitleReference;
     /// <summary>
     /// Text object that represents the description of the card on the canvas
     /// </summary>
-    [SerializeField] private Text cardDescriptionReference;
+    [SerializeField] private TextMeshProUGUI cardDescriptionReference;
     /// <summary>
     /// Text object that represents the number of the card on the canvas
     /// </summary>
-    [SerializeField] private Text cardNumber;
+    [SerializeField] private TextMeshProUGUI cardNumber;
     /// <summary>
     /// Text object that represents the Image of the suit for the card on the canvas
     /// </summary>

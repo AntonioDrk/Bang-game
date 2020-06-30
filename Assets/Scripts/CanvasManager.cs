@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using TMPro;
+using UnityEngine;
 using UnityEngine.UI;
 
 public sealed class CanvasManager : ScriptableObject
@@ -11,9 +12,23 @@ public sealed class CanvasManager : ScriptableObject
     [Tooltip("The top most parent of all the elements that compose the room UI elements.")]
     [SerializeField]
     private CanvasGroup _roomCanvasGroup;
-    private CanvasGroup RoomCanvasGroup { get { return _roomCanvasGroup; } }
+    private CanvasGroup RoomCanvasGroup => _roomCanvasGroup;
 
-    private static CanvasManager instance = null;
+    private CanvasGroup _popupCanvasGroup;
+
+    public CanvasGroup PopupCanvasGroup
+    { 
+        get => _popupCanvasGroup;
+        private set => _popupCanvasGroup = value;
+    }
+
+    public readonly string EmptyNickNameErrorMsg = "The nickname field is empty! You need to set a nickname in order to join.";
+    public readonly string EmptyRoomNameErrorMsg = "The name field of the room is empty! You need to set a name for the room in order to create one.";
+    public readonly string KickedInfoMsg = "You have been kicked from the room.";
+    public readonly string ErrorTitle = "Error!";
+    public readonly string InfoTitle = "Info!";
+    
+    private static CanvasManager instance;
     // Thread safety for the singleton
     private static readonly object padlock = new object();
 
@@ -39,16 +54,18 @@ public sealed class CanvasManager : ScriptableObject
     {
         _lobbyCanvasGroup = GameObject.FindGameObjectWithTag("LobbyCanvas").GetComponent<CanvasGroup>();
         _roomCanvasGroup = GameObject.FindGameObjectWithTag("RoomCanvas").GetComponent<CanvasGroup>();
+        _popupCanvasGroup = GameObject.FindGameObjectWithTag("PopupCanvas").GetComponent<CanvasGroup>();
 
         if (RoomCanvasGroup == null)
-        {
             Debug.LogError("Canvas group for room not assigned to canvas manager");
-        }
+
 
         if (LobbyCanvasGroup == null)
-        {
             Debug.LogError("Canvas group for lobby not assigned to canvas manager");
-        }
+
+        if(PopupCanvasGroup == null)
+            Debug.LogError("Canvas group for popup panel not assigned to canvas manager");
+            
     }
     
     public void HideLobby(bool state)
@@ -93,7 +110,47 @@ public sealed class CanvasManager : ScriptableObject
         }
         else
         {
-            Debug.LogError("The room canvas group isn't attributed");
+            Debug.LogError("The room canvas group isn't attributed!");
+        }
+    }
+
+    public void HidePopup()
+    {
+        if (PopupCanvasGroup != null)
+        {
+            PopupCanvasGroup.alpha = 0;
+            PopupCanvasGroup.interactable = false;
+            PopupCanvasGroup.blocksRaycasts = false;
+        }
+        else
+        {
+            Debug.LogError("The popup canvas group isn't set!");
+        }
+    }
+
+    public void ShowPopup(string title, string message)
+    {
+        if (PopupCanvasGroup != null)
+        {
+            PopupCanvasGroup.alpha = 1;
+            PopupCanvasGroup.interactable = true;
+            PopupCanvasGroup.blocksRaycasts = true;
+            // Explanation                              ErrorPanel           -> BG      -> Title / Content
+            TextMeshProUGUI titleMesh = PopupCanvasGroup.gameObject.transform.GetChild(0).GetChild(0).GetComponent<TextMeshProUGUI>();
+            TextMeshProUGUI messageMesh = PopupCanvasGroup.gameObject.transform.GetChild(0).GetChild(1).GetComponent<TextMeshProUGUI>();
+            if (titleMesh == null || messageMesh == null)
+            {
+                Debug.LogError("Cannot find the children of the ErrorPanel! Check the pathing.");
+                return;
+            }
+
+            titleMesh.text = title;
+            messageMesh.text = message;
+
+        }
+        else
+        {
+            Debug.LogError("The popup canvas group isn't set!");
         }
     }
 }

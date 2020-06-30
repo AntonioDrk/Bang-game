@@ -15,6 +15,8 @@ public class JoinedRoom : MonoBehaviourPunCallbacks
 
     [SerializeField] private GameObject _startButton;
     private GameObject PlayerListingPrefab => _playerListingPrefab;
+    
+    private bool _leftByChoice = false;
 
     private List<PlayerListedItem> _playerListedItems = new List<PlayerListedItem>();
     private List<PlayerListedItem> PlayerListedItems
@@ -25,6 +27,7 @@ public class JoinedRoom : MonoBehaviourPunCallbacks
     public void OnLeaveBtn()
     {
         PhotonNetwork.LeaveRoom(false);
+        _leftByChoice = true;
     }
 
     public void OnClickStartGame()
@@ -42,6 +45,7 @@ public class JoinedRoom : MonoBehaviourPunCallbacks
             if(PhotonNetwork.CurrentRoom != null)
             {
                 _roomName.text = PhotonNetwork.CurrentRoom.Name;
+                _leftByChoice = false;
             }
         }
         else
@@ -71,10 +75,22 @@ public class JoinedRoom : MonoBehaviourPunCallbacks
 
     public override void OnLeftRoom()
     {
-        Debug.Log("Successfully left the room");
+        if (_leftByChoice)
+        {
+            // Means that the player left by choice
+            Debug.Log("Successfully left the room");
+        }
+        else
+        {
+            // Means that we got kicked by the master client
+            CanvasManager.Instance.ShowPopup(CanvasManager.Instance.InfoTitle, 
+                CanvasManager.Instance.KickedInfoMsg);
+        }
+            
+        
         CanvasManager.Instance.HideLobby(false);
         CanvasManager.Instance.HideRoom(true);
-
+        
         foreach (PlayerListedItem item in PlayerListedItems)
         {
             Destroy(item.gameObject);
@@ -128,4 +144,5 @@ public class JoinedRoom : MonoBehaviourPunCallbacks
             PlayerListedItems.RemoveAt(index);
         }
     }
+    
 }
