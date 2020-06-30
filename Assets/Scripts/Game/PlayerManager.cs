@@ -56,6 +56,8 @@ public class PlayerManager : MonoBehaviour
         StartChecks();
         handTransformStartPos = handTransform.localPosition;
         _photonView.RPC("SetNamePlayerBoard", RpcTarget.AllBuffered, _photonView.Owner.NickName);
+        
+        
     }
 
     private void StartChecks()
