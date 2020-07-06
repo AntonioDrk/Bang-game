@@ -53,6 +53,12 @@ public class JoinedRoom : MonoBehaviourPunCallbacks
             Debug.LogError("Room title in room panel not set up.");
         }
 
+        if (PhotonNetwork.IsMasterClient)
+        {
+            // TODO: Move the activation of the button into a check if the room is full or at least of 4 players
+            _startButton.SetActive(true);
+        }
+
         // Cache the player list
         Player[] photonPlayers = PhotonNetwork.PlayerList;
         for(int i = 0; i < photonPlayers.Length; i++)
@@ -116,15 +122,13 @@ public class JoinedRoom : MonoBehaviourPunCallbacks
         // Throw here everything you want to show only to the HOST of the room
         if (PhotonNetwork.IsMasterClient && photonPlayer != PhotonNetwork.LocalPlayer)
         {
+            // THIS WILL ONLY WORK WHEN ONE PLAYER JOINS
             playerListing.KickButton.gameObject.SetActive(true);
-            _startButton.SetActive(true);
-            
         }
         else
         {
             // Implicit setting of the kick button to be deactivated to avoid future problems
             playerListing.KickButton.gameObject.SetActive(false);
-            _startButton.SetActive(false);    
         }
 
         // Cache the local playerListing script

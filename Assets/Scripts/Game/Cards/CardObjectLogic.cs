@@ -27,11 +27,15 @@ public class CardObjectLogic : MonoBehaviour
     /// </summary>
     [SerializeField] private GameObject actionBtns;
 
+    [SerializeField] private GameObject outlineObj;
+
     // The images for the various suits
     [SerializeField] private Sprite clubsImg;
     [SerializeField] private Sprite spadesImg;
     [SerializeField] private Sprite heartsImg;
     [SerializeField] private Sprite diamondsImg;
+
+    public bool isUpInHand = false;
 
     // The main camera to use for the canvases
     private Camera _mainCamera;
@@ -45,6 +49,8 @@ public class CardObjectLogic : MonoBehaviour
             _mainCamera = Camera.main;
             transform.GetComponentInChildren<Canvas>().worldCamera = _mainCamera;
         }
+        
+        ActivateOutline(false);
     }
 
     /// <summary>
@@ -88,6 +94,15 @@ public class CardObjectLogic : MonoBehaviour
             
         }
     }
+
+    /// <summary>
+    /// Method for switching the outline of the card on/off
+    /// </summary>
+    /// <param name="shouldBeActive">state param that represents if the card should be on or off</param>
+    public void ActivateOutline(bool shouldBeActive)
+    {
+        outlineObj.SetActive(shouldBeActive);
+    }
     
     
     /// <summary>
@@ -108,11 +123,10 @@ public class CardObjectLogic : MonoBehaviour
         return actionBtns.transform.GetChild(1) is null ? null : actionBtns.transform.GetChild(1).GetComponent<Button>();
     }
     
-    public bool GetActionBtnState()
-    {
-        return actionBtns.activeSelf;
-    }
-    
+    /// <summary>
+    /// Makes the action buttons on the card visible
+    /// </summary>
+    /// <param name="showBtns">Should the buttons be visible?</param>
     public void ShowActionBtns(bool showBtns)
     {
         actionBtns.SetActive(showBtns);

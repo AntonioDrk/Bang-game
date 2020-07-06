@@ -41,10 +41,6 @@ public class GameManager : MonoBehaviour
             Debug.LogError("There's no json file named \"characters\" in the Json folder");
         else
             characterCards = JsonHelper.getJsonArray<CharacterCard>(data.text);
-        /*for (int i = 0; i < characterCards.Length; i++)
-        {
-            Debug.Log(characterCards[i]);
-        }*/
     }
 
     private void LoadActionCards()

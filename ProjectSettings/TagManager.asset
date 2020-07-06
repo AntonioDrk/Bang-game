@@ -10,6 +10,7 @@ TagManager:
   - DrawPile
   - GameManager
   - PopupCanvas
+  - PlayerObjects
   layers:
   - Default
   - TransparentFX

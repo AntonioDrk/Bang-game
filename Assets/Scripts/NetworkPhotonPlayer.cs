@@ -53,6 +53,7 @@ public class NetworkPhotonPlayer : MonoBehaviourPunCallbacks
         {
             myPrefab = PhotonNetwork.Instantiate(Path.Combine("PhotonPrefabs", "PlayerPrefab"), 
                 GameSetup.setup.spawnPoints[spawnIndex].position, GameSetup.setup.spawnPoints[spawnIndex].rotation, 0);
+            //myPrefab.transform.parent = ;
             myPrefab.GetComponent<PhotonView>().RPC("RPC_DisableCamera", RpcTarget.AllBuffered);
         }
     }

@@ -475,6 +475,78 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
+--- !u!1 &5594596896158736299
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4510951101390108459}
+  - component: {fileID: 21391303857540834}
+  - component: {fileID: 7292307094713775048}
+  m_Layer: 0
+  m_Name: Outline
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &4510951101390108459
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5594596896158736299}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 5860985983862693851}
+  m_RootOrder: 8
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -0, y: 62.71}
+  m_SizeDelta: {x: 842.9, y: 707.46}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &21391303857540834
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5594596896158736299}
+  m_CullTransparentMesh: 0
+--- !u!114 &7292307094713775048
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5594596896158736299}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -765806418, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.181685, g: 0.895, b: 0.22767466, a: 0.6784314}
+  m_RaycastTarget: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
 --- !u!1 &5707360820846135069
 GameObject:
   m_ObjectHideFlags: 0
@@ -734,6 +806,7 @@ RectTransform:
   - {fileID: 3179467633707261797}
   - {fileID: 2942535477036698983}
   - {fileID: 4755359645343453142}
+  - {fileID: 4510951101390108459}
   m_Father: {fileID: 5860985984723103097}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -912,7 +985,7 @@ Transform:
   m_GameObject: {fileID: 5860985984723103093}
   m_LocalRotation: {x: -0.0020054958, y: 0.7660419, z: -0.6427854, w: -0.0016828105}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.33600008, y: 0.5152, z: 0.0015}
+  m_LocalScale: {x: 0.33, y: 0.51, z: 0.0015}
   m_Children:
   - {fileID: 5860985983862693851}
   - {fileID: 6338052903177358899}
@@ -994,10 +1067,12 @@ MonoBehaviour:
   cardNumber: {fileID: 850982930330083559}
   cardSuit: {fileID: 5860985983812394081}
   actionBtns: {fileID: 4763718420946592708}
+  outlineObj: {fileID: 5594596896158736299}
   clubsImg: {fileID: 21300000, guid: 5fb268101ecef594fa05f35ac60ee078, type: 3}
   spadesImg: {fileID: 21300000, guid: 382529ca7a9165f4a901ffac3e127750, type: 3}
   heartsImg: {fileID: 21300000, guid: a66af8bafb3f26648909493ef427592d, type: 3}
   diamondsImg: {fileID: 21300000, guid: 7e02ce6c20a2d1b43a70e24d85482d4a, type: 3}
+  isUpInHand: 0
 --- !u!114 &114401933854503104
 MonoBehaviour:
   m_ObjectHideFlags: 0

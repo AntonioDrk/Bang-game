@@ -15,7 +15,8 @@ using Debug = UnityEngine.Debug;
 /// interacting and deciding things for the players and cards
 /// </summary>
 [RequireComponent(typeof(PhotonView))]
-public class PlayerManager : MonoBehaviour
+[RequireComponent(typeof(PlayerLogic))]
+public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
 {
     // CONSTANTS
     private const float HandXOffset = -0.07f;
@@ -27,8 +28,11 @@ public class PlayerManager : MonoBehaviour
 
     private const float BoxColCentY = -.375f;
     private const float BoxColSizeY = 1.75f;
-    // ---------
+    
+    private const float CardSizeIncrease = 0.2f; // Percentage size increase of the card when it's highlighted
 
+    private const float CardMiddleMovementIncrease = 0.4f;
+    // ----------------------------------
 
     private Vector3 handTransformStartPos;
     
@@ -37,7 +41,7 @@ public class PlayerManager : MonoBehaviour
     
     private List<PlayableCard> playableCards = new List<PlayableCard>();
     private List<GameObject> playableCardsObjects = new List<GameObject>();
-
+ 
     private bool _playerCardActions = false;
 
     [SerializeField] private GameManager gameManager;
@@ -56,8 +60,6 @@ public class PlayerManager : MonoBehaviour
         StartChecks();
         handTransformStartPos = handTransform.localPosition;
         _photonView.RPC("SetNamePlayerBoard", RpcTarget.AllBuffered, _photonView.Owner.NickName);
-        
-        
     }
 
     private void StartChecks()
@@ -78,7 +80,7 @@ public class PlayerManager : MonoBehaviour
 
     private void Update()
     {
-        //TODO: REFACTOR Split the functionality
+        //TODO: REFACTOR Split the functionality for the love of GOD
         
         if ( _playerCardActions) return;
         if(_photonView.IsMine == false) return;
@@ -163,9 +165,13 @@ public class PlayerManager : MonoBehaviour
         {
             // Get the index of that object
             int index = playableCardsObjects.FindIndex(o => o.gameObject == _lastObjectHitPersistent);
-            if(index >= 0)
+            if (index >= 0 && index < playableCardsObjects.Count)
+            {
                 // Then move the card down
                 MoveCardDownInHand(_lastObjectHitPersistent, index);
+                _lastObjectHitPersistent.GetComponent<CardObjectLogic>().ActivateOutline(false);
+            }
+                
         }
         
     }
@@ -191,7 +197,10 @@ public class PlayerManager : MonoBehaviour
             return;
         }
         
-        cardToMove.transform.localPosition = new Vector3(CardXOffset * (playableCardsObjects.Count / 2) ,CardYMovement, CardZMovement);
+        cardToMove.transform.localPosition = new Vector3(CardXOffset * (playableCardsObjects.Count / 2f) ,
+            CardYMovement + CardYMovement * CardMiddleMovementIncrease, CardZMovement + CardZMovement * CardMiddleMovementIncrease);
+        
+        
         CardObjectLogic cardObjectLogic = cardToMove.GetComponent<CardObjectLogic>();
         
         int index = playableCardsObjects.FindIndex(o => o.gameObject == cardToMove);
@@ -201,20 +210,31 @@ public class PlayerManager : MonoBehaviour
         if(exitCardBtn is null == false)
             exitCardBtn.onClick.AddListener(() =>
             {
-                //TODO: Transform this into a RPC function, call that function here instead
-                _photonView.RPC("RPC_OnPlayBtnPressed", RpcTarget.All, index);
+                //_photonView.RPC("RPC_OnCancelBtnPressed", RpcTarget.All, index);
+                RPC_OnCancelBtnPressed(index);
             });
 
         Button playCardBtn = cardObjectLogic.GetPlayButton();
         if (playCardBtn is null == false)
             playCardBtn.onClick.AddListener(() =>
             {
-                //TODO: Transform this into a RPC function, call that function here instead
-                _photonView.RPC("RPC_OnCancelBtnPressed", RpcTarget.All, index);
+                _photonView.RPC("RPC_OnPlayBtnPressed", RpcTarget.All, index);
             });
         _playerCardActions = true;
     }
     
+    
+    [PunRPC]
+    private void RPC_OnCancelBtnPressed(int index)
+    {
+        _playerCardActions = false;
+                
+        if(index >= 0 && index < playableCardsObjects.Count)
+            MoveCardDownInHand(playableCardsObjects[index], index);
+        else
+            Debug.LogError("Card to play wasn't found in the playableCards vector");
+    }
+
     /// <summary>
     /// Function that gets called as an RPC when one of the players plays their card
     /// </summary>
@@ -223,21 +243,12 @@ public class PlayerManager : MonoBehaviour
     private void RPC_OnPlayBtnPressed(int index)
     {
         _playerCardActions = false;
-                
-        if(index >= 0)
-            MoveCardDownInHand(playableCardsObjects[index], index);
-        else
-            Debug.LogError("Card to play wasn't found in the playableCards vector");
-    }
-
-    [PunRPC]
-    private void RPC_OnCancelBtnPressed(int index)
-    {
-        _playerCardActions = false;
-        playableCardsObjects[index].GetComponent<CardObjectLogic>().ShowActionBtns(false);
-                
-        if (index >= 0)
+        if (index >= 0 && index < playableCardsObjects.Count)
         {
+            if(playableCardsObjects[index].GetComponent<CardObjectLogic>().isUpInHand)
+                DecreaseCardSize(playableCardsObjects[index]);
+            
+            playableCardsObjects[index].GetComponent<CardObjectLogic>().ShowActionBtns(false);
             gameManager.PlayCard(playableCards[index], playableCardsObjects[index]);
             //RPC_RemoveCardFromPlayerHand(playableCards[index], index);
             // Remove the card from this player on all clients
@@ -245,20 +256,50 @@ public class PlayerManager : MonoBehaviour
             RPC_RemoveCardFromPlayerHand(index);
         }
     }
-
+    
     private void MoveCardUp(GameObject cardToMove)
     {
         // Check to see if the card we're moving up is ours
-        if(cardToMove.GetComponent<PhotonView>().IsMine == false)
+        if(cardToMove.GetComponent<PhotonView>().IsMine == false || 
+           cardToMove.GetComponent<CardObjectLogic>().isUpInHand)
             return;
         // Pull the card up on hovering
         cardToMove.transform.localPosition = new Vector3(cardToMove.transform.localPosition.x, CardYMovement, CardZMovement);
-
+        IncreaseCardSize(cardToMove);
+        
+        cardToMove.GetComponent<CardObjectLogic>().ActivateOutline(true);
+        cardToMove.GetComponent<CardObjectLogic>().isUpInHand = true;
+        
         // Resizing the collider so that flickering doesn't happen anymore
         BoxCollider objectCollider = cardToMove.GetComponent<BoxCollider>();
         objectCollider.center = new Vector3(0, BoxColCentY, 0);
         objectCollider.size = new Vector3(1, BoxColSizeY, 1);
     }
+
+    /// <summary>
+    /// Increases the scale of the card on X,Y axis by 'CardSizeIncrease' percent
+    /// </summary>
+    /// <param name="cardToIncrease">The card gameobject to resize</param>
+    private void IncreaseCardSize(GameObject cardToIncrease)
+    {
+        Vector3 originalScale = cardToIncrease.transform.localScale;
+        cardToIncrease.transform.localScale = new Vector3(originalScale.x * CardSizeIncrease + originalScale.x,
+            originalScale.y * CardSizeIncrease + originalScale.y, originalScale.z);
+    }
+
+    /// <summary>
+    /// Decreases the scale of the card on X,Y axis by the same amount it was increased by 'CardSizeIncrease'
+    /// </summary>
+    /// <param name="cardToDecrease">The card gameobject to resize</param>
+    private void DecreaseCardSize(GameObject cardToDecrease)
+    {
+        Vector3 originalScale = cardToDecrease.transform.localScale;
+        // Recalculate the percent for decreasing the size to the original size (because 0.2 increase of 1 is a total of 1.2)
+        float CardSizeDecrease = CardSizeIncrease / (1 + CardSizeIncrease);
+        cardToDecrease.transform.localScale = new Vector3(originalScale.x - originalScale.x * CardSizeDecrease,
+            originalScale.y - originalScale.y * CardSizeDecrease, originalScale.z);
+    }
+
 
     /// <summary>
     /// Moves the card object back in hand to the position it was
@@ -268,11 +309,14 @@ public class PlayerManager : MonoBehaviour
     private void MoveCardDownInHand(GameObject cardToMove, int positionInArray)
     {
         // Check to see if the card we're moving down is ours
-        if(cardToMove.GetComponent<PhotonView>().IsMine == false)
+        if(cardToMove.GetComponent<PhotonView>().IsMine == false || cardToMove.GetComponent<CardObjectLogic>().isUpInHand == false)
             return;
         
         // Makes sure it hides the action buttons when it gets back in hand
         cardToMove.GetComponent<CardObjectLogic>().ShowActionBtns(false);
+        cardToMove.GetComponent<CardObjectLogic>().isUpInHand = false;
+        
+        DecreaseCardSize(cardToMove);
         
         // If the object wasn't hit by the raycast, reset the position and the scaling of the collider
         cardToMove.transform.localPosition = new Vector3(CardXOffset * positionInArray, 
@@ -321,7 +365,7 @@ public class PlayerManager : MonoBehaviour
         {
             Vector3 lastCardPos = playableCardsObjects[playableCardsObjects.Count - 1].transform.localPosition;
             instantiatedCard.transform.localPosition = lastCardPos + new Vector3(CardXOffset, CardYOffset, 0);
-            handTransform.position += new Vector3(HandXOffset, 0, 0);
+            handTransform.localPosition += new Vector3(HandXOffset, 0, 0);
         }
         
         // Add it to the list of card gameobjects
@@ -353,7 +397,6 @@ public class PlayerManager : MonoBehaviour
     /// <summary>
     /// Removes the cached card from the player
     /// </summary>
-    /// <param name="cardToRemove">The card logic to remove</param>
     /// <param name="index">It's index in the vector</param>
     [PunRPC]
     private void RPC_RemoveCardFromPlayerHand(int index)
@@ -395,5 +438,14 @@ public class PlayerManager : MonoBehaviour
         if(_photonView.IsMine)
             return;
         transform.GetChild(0).gameObject.SetActive(false);
+    }
+
+    public void OnPhotonInstantiate(PhotonMessageInfo info)
+    {
+        Transform temp = GameObject.FindGameObjectWithTag("PlayerObjects").transform;
+        if(temp == null)
+            Debug.LogError("There isn't any object tagged with \'PlayerObjects\', " +
+                           "this is made so all the players are grouped under one object on each client");
+        gameObject.transform.SetParent(temp);
     }
 }
