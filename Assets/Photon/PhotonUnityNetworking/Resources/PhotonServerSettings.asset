@@ -52,5 +52,9 @@ MonoBehaviour:
   - SetNamePlate
   - SetNamePlayerBoard
   - NextTurn
+  - RPC_SetNamePlayerBoard
+  - RPC_SetRoleCard
+  - DistributeRoles
+  - RPC_DistributeRoles
   DisableAutoOpenWizard: 1
   ShowSettings: 0

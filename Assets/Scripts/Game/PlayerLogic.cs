@@ -22,6 +22,7 @@ public class PlayerLogic : MonoBehaviour
     public CharacterCard CharCard { get => _charCard; set => _charCard = value; }
     
     // The role associated with the player
+    [SerializeField]
     private Role _playerRole;
     public Role PlayerRole { get => _playerRole; set => _playerRole = value; }
 

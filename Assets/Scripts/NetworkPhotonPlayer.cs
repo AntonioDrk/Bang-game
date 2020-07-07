@@ -18,7 +18,7 @@ public class NetworkPhotonPlayer : MonoBehaviourPunCallbacks
 
     public int spawnIndex = 0;
     
-    private void Start()
+    private void Awake()
     {
         _pv = GetComponent<PhotonView>();
 
@@ -28,7 +28,7 @@ public class NetworkPhotonPlayer : MonoBehaviourPunCallbacks
         if (_pv.IsMine)
         {
             // Tells the server to register this players seat 
-            GameSetup.setup.photonView.RPC("RPC_SetPlayerSeat", RpcTarget.AllBufferedViaServer, _pv.Owner.ActorNumber);
+            GameSetup.instance.photonView.RPC("RPC_SetPlayerSeat", RpcTarget.AllBufferedViaServer, _pv.Owner.ActorNumber);
             
             // Instaintiates the player at the correct spawn position
             _pv.RPC("RPC_SetSpawnIndex", RpcTarget.AllBufferedViaServer);
@@ -39,11 +39,11 @@ public class NetworkPhotonPlayer : MonoBehaviourPunCallbacks
     void RPC_SetSpawnIndex()
     {
         _pv = GetComponent<PhotonView>();
-        for (spawnIndex = 0; spawnIndex < GameSetup.setup.playerSeats.Length; spawnIndex++)
-            if (GameSetup.setup.playerSeats[spawnIndex] == _pv.Owner.ActorNumber)
+        for (spawnIndex = 0; spawnIndex < GameSetup.instance.playerSeats.Length; spawnIndex++)
+            if (GameSetup.instance.playerSeats[spawnIndex] == _pv.Owner.ActorNumber)
                 break;
 
-        if (spawnIndex >= GameSetup.setup.playerSeats.Length)
+        if (spawnIndex >= GameSetup.instance.playerSeats.Length)
         {
             spawnIndex = 0;
             Debug.LogError("Couldn't find the player seat associated with this player, help!");
@@ -52,10 +52,12 @@ public class NetworkPhotonPlayer : MonoBehaviourPunCallbacks
         if (_pv.IsMine)
         {
             myPrefab = PhotonNetwork.Instantiate(Path.Combine("PhotonPrefabs", "PlayerPrefab"), 
-                GameSetup.setup.spawnPoints[spawnIndex].position, GameSetup.setup.spawnPoints[spawnIndex].rotation, 0);
-            //myPrefab.transform.parent = ;
+                GameSetup.instance.spawnPoints[spawnIndex].position, GameSetup.instance.spawnPoints[spawnIndex].rotation, 0);
             myPrefab.GetComponent<PhotonView>().RPC("RPC_DisableCamera", RpcTarget.AllBuffered);
         }
+        
+        if (GameSetup.instance.NumberOfOccupiedSeats() == PhotonNetwork.CurrentRoom.MaxPlayers) 
+            GameObject.FindGameObjectWithTag("GameManager").GetComponent<PhotonView>().RPC("RPC_DistributeRoles", RpcTarget.MasterClient);
     }
     
 }

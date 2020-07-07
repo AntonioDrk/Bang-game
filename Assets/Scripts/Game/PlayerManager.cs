@@ -54,12 +54,16 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     private GameObject _objectHit;
 
     private PhotonView _photonView;
-
+    
     private void Start()
     {
         StartChecks();
         handTransformStartPos = handTransform.localPosition;
-        _photonView.RPC("SetNamePlayerBoard", RpcTarget.AllBuffered, _photonView.Owner.NickName);
+        _photonView.RPC("RPC_SetNamePlayerBoard", RpcTarget.AllBuffered, _photonView.Owner.NickName);
+        //Debug.LogWarning("Setting up the role card with role " + GetComponent<PlayerLogic>().PlayerRole);
+        //_photonView.RPC("RPC_SetRoleCard", RpcTarget.AllBufferedViaServer, GetComponent<PlayerLogic>().PlayerRole);
+        
+        
     }
 
     private void StartChecks()
@@ -330,10 +334,45 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     }
 
     [PunRPC]
-    public void SetNamePlayerBoard(string value)
+    public void RPC_SetNamePlayerBoard(string value)
     {
         // Gets the textmeshpro of the title of the player board
         playerBoardCanvas.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = value;
+    }
+    
+    [PunRPC]
+    public void RPC_SetRoleCard(Role role)
+    {
+        if (_photonView.IsMine || role == Role.Sheriff)
+        {
+            // If it's our client then display the role (or if it's the sheriff display it)
+            GameObject roleCardBack = playerBoardCanvas.transform.GetChild(4).gameObject;
+            if(roleCardBack == null)
+                Debug.LogError("COULDN'T FIND THE ROLECARDBACK, CHECK THE CHILD COUNT");
+            else
+                roleCardBack.SetActive(false);
+
+            string temp = "";
+            switch (role)
+            {
+                case Role.Deputy:
+                    temp = "Deputy";
+                    break;
+                case Role.Outlaw:
+                    temp = "Outlaw";
+                    break;
+                case Role.Renegade:
+                    temp = "Renegade";
+                    break;
+                case Role.Sheriff:
+                    temp = "Sheriff";
+                    break;
+                default:
+                    temp = "None";
+                    break;
+            }
+            playerBoardCanvas.transform.GetChild(3).GetChild(0).GetComponent<TextMeshProUGUI>().text = temp;
+        }
     }
     
     
@@ -439,7 +478,11 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
             return;
         transform.GetChild(0).gameObject.SetActive(false);
     }
-
+    
+    /// <summary>
+    /// Called when the gameobject successfully instantiates
+    /// </summary>
+    /// <param name="info"></param>
     public void OnPhotonInstantiate(PhotonMessageInfo info)
     {
         Transform temp = GameObject.FindGameObjectWithTag("PlayerObjects").transform;

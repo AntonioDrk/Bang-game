@@ -10,19 +10,22 @@ using Random = UnityEngine.Random;
 public class GameManager : MonoBehaviour
 {
     private string _jsonLoadPath = "MetaData/Json";
-    
+
     [SerializeField] private Transform discardPileContainer;
     [SerializeField] private GameObject cardPrefab;
     [SerializeField] private Transform drawPileContainer;
     [SerializeField] private int numberOfDrawCards;
     [SerializeField] private PhotonView _photonView;
     [SerializeField] private int _generatedSeed;
+    [SerializeField] private GameSetup _gameSetup;
 
     private CharacterCard[] characterCards;
     private ActionCard[] actionCards;
     private WeaponCard[] weaponCards;
-    
-    
+
+    private Role[] rolesForSeats;
+
+
     private List<PlayableCard> drawPileCards = new List<PlayableCard>();
     private List<GameObject> drawPileObjects = new List<GameObject>();
     private List<PlayableCard> discardPileCards = new List<PlayableCard>();
@@ -30,14 +33,14 @@ public class GameManager : MonoBehaviour
 
     private int currentTurn = 0;
 
-    
+
     /// <summary>
     /// Loads the character cards from the "characters" json file
     /// </summary>
     private void LoadCharacterCards()
     {
         TextAsset data = Resources.Load(_jsonLoadPath + "/characters") as TextAsset;
-        if(data == null)
+        if (data == null)
             Debug.LogError("There's no json file named \"characters\" in the Json folder");
         else
             characterCards = JsonHelper.getJsonArray<CharacterCard>(data.text);
@@ -51,7 +54,7 @@ public class GameManager : MonoBehaviour
             Debug.LogError("There's no json file named \"ActionCards\" in the Json folder");
             return;
         }
-        
+
         actionCards = JsonHelper.getJsonArray<ActionCard>(data.text);
         for (int i = 0; i < actionCards.Length; i++)
         {
@@ -77,22 +80,87 @@ public class GameManager : MonoBehaviour
         {
             throw new Exception("There's no json file named \"CardsDistribution\" in the Json folder");
         }
-        
+
         cardDistributions = JsonHelper.getJsonArray<CardDistribution>(data.text);
 
         return cardDistributions;
     }
 
+    /// <summary>
+    /// Distributes the roles based on the seats
+    /// </summary>
+    [PunRPC]
+    private void RPC_DistributeRoles()
+    {
+        // Wait for the instantiation of the game setup
+        int numberPlayers = _gameSetup.GetInstance().NumberOfOccupiedSeats();
+        rolesForSeats = new Role[numberPlayers];
+
+        // Basic start config for 4 players
+        List<Role> config = new List<Role>();
+        config.Add(Role.Sheriff);
+        config.Add(Role.Outlaw);
+        config.Add(Role.Outlaw);
+        config.Add(Role.Renegade);
+
+        // The different configurations based on the number of players
+        switch (numberPlayers)
+        {
+            case 4:
+                break;
+            case 5:
+                config.Add(Role.Deputy);
+                break;
+            case 6:
+                config.Add(Role.Deputy);
+                config.Add(Role.Outlaw);
+                break;
+            case 7:
+                config.Add(Role.Deputy);
+                config.Add(Role.Deputy);
+                config.Add(Role.Outlaw);
+                break;
+            default:
+                Debug.LogError("Number of players not in the configuration! Something went wrong");
+                break;
+        }
+
+        // Setting the roles randomly per seat
+        // (on index 0 meaning the first seat is a random role and so on...)
+        Debug.Log("Assigning roles...");
+        Debug.LogWarning("Number of players is " + numberPlayers);
+        for (int i = 0; i < numberPlayers; i++)
+        {
+            int roleIndex = Random.Range(0, config.Count - 1);
+            rolesForSeats[i] = config[roleIndex];
+            config.RemoveAt(roleIndex);
+            Debug.LogWarning("Player at seat " + i + " has role " + rolesForSeats[i]);
+            // Sets the logic of the player
+            GameObject playerObject = GameSetup.instance.GetPlayerObjectAtSeat(i);
+            //TODO: There are still errors around here
+            if(playerObject == null)
+                Debug.LogError("Couldn't find the player object at seat " + i);
+            else
+            {
+                playerObject.GetComponent<PlayerLogic>().PlayerRole = rolesForSeats[i];
+                playerObject.GetComponent<PhotonView>().RPC("RPC_SetRoleCard", RpcTarget.AllBufferedViaServer, rolesForSeats[i]);
+            }
+                
+        }
+        
+        
+    }
+
     public int GetPlayerTurnId()
     {
-        return GameSetup.setup.playerSeats[currentTurn];
+        return GameSetup.instance.playerSeats[currentTurn];
     }
 
     [PunRPC]
     public void NextTurn()
     {
         currentTurn++;
-        currentTurn %= GameSetup.setup.playerSeats.Length;
+        currentTurn %= GameSetup.instance.playerSeats.Length;
     }
 
     /// <summary>
@@ -357,21 +425,22 @@ public class GameManager : MonoBehaviour
         LoadActionCards();
         GeneratePlayableCards();
         ShuffleDrawPile();
+        //RPC_DistributeRoles();
     }
 
     private void Awake()
+    {
+        
+    }
+
+    private void Start()
     {
         // Sets on all the clients the same seed for the random function
         // This way, any random operations as shuffling will have the same output on all clients
         if (PhotonNetwork.IsMasterClient) // Gamemanager is a scene owned object, only the "master" client should make the rpc call to the others
         {
             _generatedSeed = Random.Range(int.MinValue, int.MaxValue);
-            _photonView.RPC("RPC_RunSetup", RpcTarget.AllBuffered, _generatedSeed);
+            _photonView.RPC("RPC_RunSetup", RpcTarget.AllBufferedViaServer, _generatedSeed);
         }
-    }
-
-    private void Start()
-    {
-        //GenerateRandomDrawCards(NumberOfDrawCards);
     }
 }
