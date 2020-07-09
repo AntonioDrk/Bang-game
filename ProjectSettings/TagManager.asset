@@ -11,6 +11,7 @@ TagManager:
   - GameManager
   - PopupCanvas
   - PlayerObjects
+  - CanvasManagerGame
   layers:
   - Default
   - TransparentFX

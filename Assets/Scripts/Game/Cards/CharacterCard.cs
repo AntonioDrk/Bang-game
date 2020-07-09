@@ -10,6 +10,7 @@ using UnityEngine;
 [Serializable]
 public enum CharacterActions
 {
+    None,
     DrawOnLostLife,
     ShowSecondCard,
     InterBangMissed,
@@ -36,14 +37,20 @@ public class CharacterCard : Card
 {
     [SerializeField]
     private uint lives;
-    [SerializeField]
+
+    public uint Lives
+    {
+        get => lives;
+        set => lives = value;
+    }
+
     private CharacterActions characterAction;
 
 
     public CharacterCard(CharacterActions action, string title ="", string description="", 
                         uint nrLives = 0):base(title, description)
     {
-        lives = nrLives;
+        Lives = nrLives;
         characterAction = action;
     }
 }

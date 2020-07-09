@@ -327,7 +327,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _mainCamera: {fileID: 3773253208808117860}
-  gameManager: {fileID: 0}
   handTransform: {fileID: 3773253209102146085}
   playerBoardCanvas: {fileID: 6999489352774527431}
 --- !u!114 &2427498326160254582
@@ -653,6 +652,46 @@ PrefabInstance:
       propertyPath: m_textInfo.pageCount
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1711646662592773174, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1711646662592773174, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0.000019759
+      objectReference: {fileID: 0}
+    - target: {fileID: 1711646662592773174, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1711646662592773174, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1711646662592773174, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.0000000027918
+      objectReference: {fileID: 0}
+    - target: {fileID: 1711646662592773174, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0.2757
+      objectReference: {fileID: 0}
+    - target: {fileID: 1711646662592773174, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 2.2902
+      objectReference: {fileID: 0}
+    - target: {fileID: 1711646662592773174, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 5.0136
+      objectReference: {fileID: 0}
     - target: {fileID: 1801349615311055720, guid: 92ab57f4fe0eb17489313e0f6931ddce,
         type: 3}
       propertyPath: m_textInfo.characterCount
@@ -762,6 +801,31 @@ PrefabInstance:
         type: 3}
       propertyPath: m_textInfo.pageCount
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5368612246928921486, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_charWidthMaxAdj
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 5368612246928921486, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_fontSizeMin
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 5368612246928921486, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_fontSize
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5368612246928921486, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_fontSizeMax
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5368612246928921486, guid: 92ab57f4fe0eb17489313e0f6931ddce,
+        type: 3}
+      propertyPath: m_textInfo.lineCount
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 5432412312356694158, guid: 92ab57f4fe0eb17489313e0f6931ddce,
         type: 3}

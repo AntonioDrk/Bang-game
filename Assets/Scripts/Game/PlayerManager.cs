@@ -44,17 +44,24 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
  
     private bool _playerCardActions = false;
 
-    [SerializeField] private GameManager gameManager;
+    private GameManager gameManager;
+    private GameCanvasManager canvasManager;
 
     [SerializeField] private Transform handTransform;
 
     [SerializeField] private GameObject playerBoardCanvas;
-    
+
     private GameObject _lastObjectHitPersistent;
     private GameObject _objectHit;
 
     private PhotonView _photonView;
-    
+
+    private void Awake()
+    {
+        GameSetup.instance.NumberOfPlayer++;
+        Debug.LogWarning("Number of player objects is " + GameSetup.instance.NumberOfPlayer);
+    }
+
     private void Start()
     {
         StartChecks();
@@ -63,7 +70,13 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         //Debug.LogWarning("Setting up the role card with role " + GetComponent<PlayerLogic>().PlayerRole);
         //_photonView.RPC("RPC_SetRoleCard", RpcTarget.AllBufferedViaServer, GetComponent<PlayerLogic>().PlayerRole);
         
-        
+        // Why is this getting called multiple times?
+        if (GameSetup.instance.NumberOfPlayer == PhotonNetwork.CurrentRoom.MaxPlayers)
+        {
+            gameManager.DistributeRoles();
+            gameManager.DistributeCharacters();
+        }
+            
     }
 
     private void StartChecks()
@@ -77,6 +90,10 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         gameManager = GameObject.FindGameObjectWithTag("GameManager").GetComponent<GameManager>();
         if(gameManager == null)
             Debug.LogError("Game manager couldn't be found!");
+
+        canvasManager = GameObject.FindGameObjectWithTag("CanvasManagerGame").GetComponent<GameCanvasManager>();
+        if(canvasManager == null)
+            Debug.LogError("CanvasManagerGame probably isn't in scene or doesn't have the tag \"CanvasManagerGame\"");
         
         if(playerBoardCanvas == null)
             Debug.LogError("Player board canvas isn't set, make sure you set it in the inspector!");
@@ -191,7 +208,7 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         if(cardToMove.GetComponent<PhotonView>().IsMine == false)
             return;
         
-        Debug.LogWarning("Moveing card to the middle of the screen for client " + _photonView.Owner.ActorNumber);
+        Debug.LogWarning("Moving card to the middle of the screen for client " + _photonView.Owner.ActorNumber);
 
         // TODO: cut the function to fewer lines
         BoxCollider cardColl = cardToMove.GetComponent<BoxCollider>();
@@ -345,6 +362,7 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     {
         if (_photonView.IsMine || role == Role.Sheriff)
         {
+            Debug.LogWarning("Setting the role text of player " + _photonView.Owner.NickName);
             // If it's our client then display the role (or if it's the sheriff display it)
             GameObject roleCardBack = playerBoardCanvas.transform.GetChild(4).gameObject;
             if(roleCardBack == null)
@@ -371,10 +389,32 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
                     temp = "None";
                     break;
             }
+            Debug.LogWarning("Setting the text to " + temp);
             playerBoardCanvas.transform.GetChild(3).GetChild(0).GetComponent<TextMeshProUGUI>().text = temp;
         }
     }
-    
+
+    public void SetCharacterCard()
+    {
+        Debug.LogWarning("Setting up character card");
+        CharacterCard chCard = GetComponent<PlayerLogic>().CharCard;
+        if (chCard == null)
+        {
+            Debug.LogError("Character card wasn't set and we're trying to access it!");
+            return;
+        }
+        
+        // Title of the card
+        playerBoardCanvas.transform.GetChild(5).GetChild(0).GetComponent<TextMeshProUGUI>().text = chCard.Title;
+        
+        // Description of the card
+        playerBoardCanvas.transform.GetChild(5).GetChild(1).GetComponent<TextMeshProUGUI>().text = chCard.Description;
+        
+        // Check to see if the player is actually LOCAL
+        // then change the visible Canvas
+        if(_photonView.IsMine)
+            canvasManager.SetLives((int)chCard.Lives);
+    }
     
     /// <summary>
     /// Adds a card to the player hand
@@ -490,5 +530,6 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
             Debug.LogError("There isn't any object tagged with \'PlayerObjects\', " +
                            "this is made so all the players are grouped under one object on each client");
         gameObject.transform.SetParent(temp);
+        
     }
 }

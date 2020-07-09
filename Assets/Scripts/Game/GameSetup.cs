@@ -11,7 +11,9 @@ public class GameSetup : MonoBehaviour
     public int[] playerSeats;
 
     private int numberOfPlayer = 0;
-    
+
+    public int NumberOfPlayer { get => numberOfPlayer; set => numberOfPlayer = value; }
+
     public PhotonView photonView;
 
     private void Awake()
@@ -85,7 +87,7 @@ public class GameSetup : MonoBehaviour
             if (playerSeats[index] == 0)
             {
                 playerSeats[index] = viewId;
-                numberOfPlayer++;
+                
                 break;
             }
         }

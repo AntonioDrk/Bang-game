@@ -24,6 +24,10 @@ public class GameManager : MonoBehaviour
     private WeaponCard[] weaponCards;
 
     private Role[] rolesForSeats;
+    private bool rolesDistributed = false;
+
+    private CharacterCard[] characterCardsPerSeat;
+    private bool charactersDistributed = false;
 
 
     private List<PlayableCard> drawPileCards = new List<PlayableCard>();
@@ -89,9 +93,11 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// Distributes the roles based on the seats
     /// </summary>
-    [PunRPC]
-    private void RPC_DistributeRoles()
+    public void DistributeRoles()
     {
+        if(rolesDistributed)
+            return;
+
         // Wait for the instantiation of the game setup
         int numberPlayers = _gameSetup.GetInstance().NumberOfOccupiedSeats();
         rolesForSeats = new Role[numberPlayers];
@@ -143,12 +149,43 @@ public class GameManager : MonoBehaviour
             else
             {
                 playerObject.GetComponent<PlayerLogic>().PlayerRole = rolesForSeats[i];
-                playerObject.GetComponent<PhotonView>().RPC("RPC_SetRoleCard", RpcTarget.AllBufferedViaServer, rolesForSeats[i]);
+                //playerObject.GetComponent<PhotonView>().RPC("RPC_SetRoleCard", RpcTarget.AllBufferedViaServer, rolesForSeats[i]);
+                playerObject.GetComponent<PlayerManager>().RPC_SetRoleCard(rolesForSeats[i]);
             }
                 
         }
+
+        rolesDistributed = true;
+    }
+
+    /// <summary>
+    /// Function that distributes the character cards to all player objects
+    /// and also tells them to set up the display of them
+    /// </summary>
+    public void DistributeCharacters()
+    {
+        if(charactersDistributed)
+            return;
         
-        
+        characterCardsPerSeat = new CharacterCard[GameSetup.instance.NumberOfPlayer];
+        Debug.LogWarning("Distributing the character cards to " + GameSetup.instance.NumberOfPlayer + " players");
+        for (int i = 0; i < GameSetup.instance.NumberOfPlayer; i++)
+        {
+            int nrLives = 4;
+            if (Random.Range(0f, 1f) <= 0.15f)
+                nrLives = 3;
+            // TODO: Here you should pick a random already loaded character card
+            CharacterCard chCard = new CharacterCard(CharacterActions.None, "Test Character", 
+                "This is a test character card, it has a 15% chance of having 3 lives instead of 4.", (uint)nrLives);
+
+            characterCardsPerSeat[i] = chCard;
+            
+            GameObject playerObject = GameSetup.instance.GetPlayerObjectAtSeat(i);
+            playerObject.GetComponent<PlayerLogic>().CharCard = chCard;
+            playerObject.GetComponent<PlayerManager>().SetCharacterCard();
+        }
+
+        charactersDistributed = true;
     }
 
     public int GetPlayerTurnId()

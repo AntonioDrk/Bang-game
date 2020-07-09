@@ -53,11 +53,13 @@ public class NetworkPhotonPlayer : MonoBehaviourPunCallbacks
         {
             myPrefab = PhotonNetwork.Instantiate(Path.Combine("PhotonPrefabs", "PlayerPrefab"), 
                 GameSetup.instance.spawnPoints[spawnIndex].position, GameSetup.instance.spawnPoints[spawnIndex].rotation, 0);
+            
+            
             myPrefab.GetComponent<PhotonView>().RPC("RPC_DisableCamera", RpcTarget.AllBuffered);
         }
         
-        if (GameSetup.instance.NumberOfOccupiedSeats() == PhotonNetwork.CurrentRoom.MaxPlayers) 
-            GameObject.FindGameObjectWithTag("GameManager").GetComponent<PhotonView>().RPC("RPC_DistributeRoles", RpcTarget.MasterClient);
+        
+        
     }
     
 }
