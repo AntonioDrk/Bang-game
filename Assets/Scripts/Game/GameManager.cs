@@ -18,6 +18,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private PhotonView _photonView;
     [SerializeField] private int _generatedSeed;
     [SerializeField] private GameSetup _gameSetup;
+    [SerializeField] private GameCanvasManager canvasManager; 
 
     private CharacterCard[] characterCards;
     private ActionCard[] actionCards;
@@ -182,7 +183,25 @@ public class GameManager : MonoBehaviour
             
             GameObject playerObject = GameSetup.instance.GetPlayerObjectAtSeat(i);
             playerObject.GetComponent<PlayerLogic>().CharCard = chCard;
+            
+            // Sheriff gets one permanent life in addition
+            // the turn starts with him
+            if (rolesForSeats[i] == Role.Sheriff)
+            {
+                nrLives += 1;
+                currentTurn = i;
+                playerObject.GetComponent<PlayerManager>().SetTurn(true);
+                
+                if(PhotonNetwork.LocalPlayer.NickName == GetPlayerNameTurn())
+                    canvasManager.SetTurnText("YOURS");
+                else
+                    canvasManager.SetTurnText(GetPlayerNameTurn());
+            }
+                
+            
+            playerObject.GetComponent<PlayerLogic>().SetLives(nrLives);
             playerObject.GetComponent<PlayerManager>().SetCharacterCard();
+            playerObject.GetComponent<PlayerManager>().DrawStartCards();
         }
 
         charactersDistributed = true;
@@ -193,11 +212,24 @@ public class GameManager : MonoBehaviour
         return GameSetup.instance.playerSeats[currentTurn];
     }
 
+    public string GetPlayerNameTurn()
+    {
+        return GameSetup.instance.GetPlayerObjectAtSeat(currentTurn).GetComponent<PhotonView>().Owner.NickName;
+    }
+
     [PunRPC]
     public void NextTurn()
     {
         currentTurn++;
         currentTurn %= GameSetup.instance.playerSeats.Length;
+        
+        // Check if the we're the local player and it's our turn
+        // If it is then show YOURS otherwise, from a different
+        //  client show who's turn it is
+        if(PhotonNetwork.LocalPlayer.NickName == GetPlayerNameTurn())
+            canvasManager.SetTurnText("YOURS");
+        else
+            canvasManager.SetTurnText(GetPlayerNameTurn());
     }
 
     /// <summary>

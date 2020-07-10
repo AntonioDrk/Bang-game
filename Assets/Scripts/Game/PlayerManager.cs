@@ -43,9 +43,14 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     private List<GameObject> playableCardsObjects = new List<GameObject>();
  
     private bool _playerCardActions = false;
-
+    private bool _isMyTurn = false;
+    private bool _drawnTurnCards = false;
+    private int _numberOfDrawnCards = 0;
+    
+    
     private GameManager gameManager;
     private GameCanvasManager canvasManager;
+    private PlayerLogic playerLogic;
 
     [SerializeField] private Transform handTransform;
 
@@ -53,18 +58,19 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
 
     private GameObject _lastObjectHitPersistent;
     private GameObject _objectHit;
-
+    
     private PhotonView _photonView;
-
+    
     private void Awake()
     {
         GameSetup.instance.NumberOfPlayer++;
+        StartChecks();
         Debug.LogWarning("Number of player objects is " + GameSetup.instance.NumberOfPlayer);
     }
 
     private void Start()
     {
-        StartChecks();
+        
         handTransformStartPos = handTransform.localPosition;
         _photonView.RPC("RPC_SetNamePlayerBoard", RpcTarget.AllBuffered, _photonView.Owner.NickName);
         //Debug.LogWarning("Setting up the role card with role " + GetComponent<PlayerLogic>().PlayerRole);
@@ -78,15 +84,40 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         }
             
     }
+    
+    /// <summary>
+    /// Function to tell if it's the players turn or not.
+    /// Could be used for checks and initializations at the start of the turn.
+    /// </summary>
+    public void SetTurn(bool isMyTurn)
+    {
+        if (isMyTurn)
+        {
+            _isMyTurn = true;
+            _numberOfDrawnCards = 0;
+            _drawnTurnCards = false;
+            // Not setting the end turn button here because player needs to draw before he can end his turn
+        }
+        else
+        {
+            _isMyTurn = false;
+            canvasManager.ToggleEndTurnBtn(true);
+        }
+        
+    }
 
+    /// <summary>
+    /// Basic function that wraps all the checks for variables and also sets them (should be called in awake function)
+    /// </summary>
     private void StartChecks()
     {
         _photonView = gameObject.GetComponent<PhotonView>();
         if (_photonView == null)
-        {
-            Debug.LogError("Photon view not found!");
-        }
+         Debug.LogError("Photon view not found!");
 
+        // This should never be able to be null because of the [RequireComponent]
+        playerLogic = GetComponent<PlayerLogic>();
+        
         gameManager = GameObject.FindGameObjectWithTag("GameManager").GetComponent<GameManager>();
         if(gameManager == null)
             Debug.LogError("Game manager couldn't be found!");
@@ -156,16 +187,37 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
                     MoveCardToMiddleScreen(_objectHit);
                 }
             }
-                
             
-            // If we click on the object with the tag DrawPile we then add a random card to hand
-            if (hit.transform.gameObject.CompareTag("DrawPile") && Input.GetMouseButtonDown(0))
+            // Is it my turn ?!
+            if (_isMyTurn)
             {
-                //RPC_AddCardToPlayerHand();
-                //TODO: Check if he can hold any more cards
-                _photonView.RPC("RPC_AddCardToPlayerHand", RpcTarget.All);
+                // IF WE DIDN'T DRAW OUR FIRST PHASE CARDS
+                if (_drawnTurnCards == false)
+                {
+                    // Tell the player how many cards he still has to draw
+                    canvasManager.InfoMessageDrawCard(2 - _numberOfDrawnCards);
+
+                    // If we click on the object with the tag DrawPile we then add a random card to hand
+                    if (hit.transform.gameObject.CompareTag("DrawPile") && Input.GetMouseButtonDown(0))
+                    {
+                        //TODO: Check if he can hold any more cards
+                        _photonView.RPC("RPC_AddCardToPlayerHand", RpcTarget.All);
+                        // Number of required cards to draw goes down
+                        _numberOfDrawnCards += 1;
+                        // When we drew the amount necessary stop letting the player draw
+                        if (_numberOfDrawnCards >= 2)
+                            _drawnTurnCards = true;
+                    }
+                }
+                else // Player has drawn the cards from the first phase
+                {
+                    // Hide the info messaging
+                    canvasManager.HideInfoMessage();
+                    
+                    // Display the end turn button
+                    canvasManager.ToggleEndTurnBtn(false);
+                }
             }
-                
             
             //_objectHit = hit.transform.gameObject;
         }
@@ -245,6 +297,11 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     }
     
     
+    /// <summary>
+    /// Function that gets called once the cancel button on a card is pressed.
+    /// It calls back the MoveCardDown function.
+    /// </summary>
+    /// <param name="index">The index of the card</param>
     [PunRPC]
     private void RPC_OnCancelBtnPressed(int index)
     {
@@ -412,9 +469,26 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         
         // Check to see if the player is actually LOCAL
         // then change the visible Canvas
-        if(_photonView.IsMine)
+        if (_photonView.IsMine)
+        {
             canvasManager.SetLives((int)chCard.Lives);
+        }
     }
+
+    public void DrawStartCards()
+    {
+        // This should usually be called inside a IsMine check but let's be sure about that
+        if(!_photonView.IsMine)
+            return;
+        
+        Debug.LogWarning("Giving player " + _photonView.Owner.NickName + " " + GetComponent<PlayerLogic>().CurrentLives + " cards");
+        
+        for (int i = 0; i < GetComponent<PlayerLogic>().CurrentLives; i++)
+        {
+            _photonView.RPC("RPC_AddCardToPlayerHand", RpcTarget.AllViaServer);
+        }
+    }
+    
     
     /// <summary>
     /// Adds a card to the player hand

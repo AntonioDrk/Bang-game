@@ -20,19 +20,39 @@ public class PlayerLogic : MonoBehaviour
     // The character card associated with this player
     private CharacterCard _charCard;
     public CharacterCard CharCard { get => _charCard; set => _charCard = value; }
+
+    // The current lives this player has
+    private int _currentLives;
+    public int CurrentLives { get => _currentLives; private set => _currentLives = value; }
     
     // The role associated with the player
     [SerializeField]
     private Role _playerRole;
     public Role PlayerRole { get => _playerRole; set => _playerRole = value; }
 
-    void Start()
+    public void SetLives(int amount)
     {
-        
-    }
-    
-    void Update()
-    {
-        
+        CurrentLives = amount;
+        if (CurrentLives < 0)
+        {
+            CurrentLives = 0;
+            Debug.LogError("Tried to set the lives to a negative number!");
+        }
+
+        if (_playerRole == Role.Sheriff)
+        {
+            if (CurrentLives > _charCard.Lives + 1)
+            {
+                CurrentLives = (int)_charCard.Lives + 1;
+                Debug.LogError("Tried to set the lives to a higher number than the number on the role card!");
+            }
+            
+        } else {
+            if (CurrentLives > _charCard.Lives)
+            {
+                CurrentLives = (int)_charCard.Lives;
+                Debug.LogError("Tried to set the lives to a higher number than the number on the role card!");
+            }
+        }
     }
 }

@@ -56,5 +56,6 @@ MonoBehaviour:
   - RPC_SetRoleCard
   - DistributeRoles
   - RPC_DistributeRoles
+  - DrawStartCards
   DisableAutoOpenWizard: 1
   ShowSettings: 0
