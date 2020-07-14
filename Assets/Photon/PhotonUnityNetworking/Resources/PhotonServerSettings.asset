@@ -57,5 +57,11 @@ MonoBehaviour:
   - DistributeRoles
   - RPC_DistributeRoles
   - DrawStartCards
+  - RPC_DiscardCard
+  - RPC_OnDiscardBtnPressed
+  - RPC_PlayCard
+  - MoveCardObjectInFrontOfPlayer
+  - RPC_NextTurn
+  - RPC_On_EndTurn
   DisableAutoOpenWizard: 1
   ShowSettings: 0

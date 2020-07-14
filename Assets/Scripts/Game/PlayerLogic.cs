@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -24,7 +25,7 @@ public class PlayerLogic : MonoBehaviour
     // The current lives this player has
     private int _currentLives;
     public int CurrentLives { get => _currentLives; private set => _currentLives = value; }
-    
+
     // The role associated with the player
     [SerializeField]
     private Role _playerRole;
@@ -54,5 +55,8 @@ public class PlayerLogic : MonoBehaviour
                 Debug.LogError("Tried to set the lives to a higher number than the number on the role card!");
             }
         }
+        
+        // Callback so the local player updates his canvas
+        gameObject.GetComponent<PlayerManager>().UpdateLivesText();
     }
 }

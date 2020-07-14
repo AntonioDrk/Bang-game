@@ -113,14 +113,23 @@ public class CardObjectLogic : MonoBehaviour
     {
         return actionBtns.transform.GetChild(0) is null ? null : actionBtns.transform.GetChild(0).GetComponent<Button>();
     }
-    
+
+    /// <summary>
+    /// Get the discard action button of the card may return null
+    /// </summary>
+    /// <returns>Reference to the button component</returns>
+    public Button GetDiscardButton()
+    {
+        return actionBtns.transform.GetChild(1) is null ? null : actionBtns.transform.GetChild(1).GetComponent<Button>();
+    }
+
     /// <summary>
     /// Get the play action button of the card may return null
     /// </summary>
     /// <returns>Reference to the button component</returns>
     public Button GetPlayButton()
     {
-        return actionBtns.transform.GetChild(1) is null ? null : actionBtns.transform.GetChild(1).GetComponent<Button>();
+        return actionBtns.transform.GetChild(2) is null ? null : actionBtns.transform.GetChild(2).GetComponent<Button>();
     }
     
     /// <summary>

@@ -8,7 +8,8 @@ public enum Target
     InWeaponRange,
     RangeOne,
     AnyPlayer,
-    AllPlayers
+    AllPlayers,
+    Yourself
 }
 
 public enum Effect
@@ -25,7 +26,7 @@ public class ActionCard : PlayableCard
     [SerializeField]
     private Target target;
     [SerializeField]
-    private Effect[] effects;
+    private Effect effect;
     
 
     public Target Target
@@ -34,22 +35,22 @@ public class ActionCard : PlayableCard
         set => target = value;
     }
 
-    public Effect[] Effects
+    public Effect Effect
     {
-        get => effects;
-        set => value.Clone();
+        get => effect;
+        set => effect = value;
     }
 
-    public ActionCard(Target target, Effect[] effects, CardSuit cardSuit, uint cardNumber, string cardTitle = "",
+    public ActionCard(Target target, Effect effect, CardSuit cardSuit, uint cardNumber, string cardTitle = "",
         string cardDescription = "") : base(cardSuit, cardNumber, cardTitle, cardDescription)
     {
         Target = target;
-        Effects = effects;
+        Effect = effect;
     }
 
     public ActionCard(ActionCard ac) : base(ac)
     {
         Target = ac.Target;
-        Effects = ac.Effects;
+        Effect = ac.Effect;
     }
 }

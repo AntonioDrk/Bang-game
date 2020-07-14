@@ -5,18 +5,14 @@
     "suit": 1,
     "number": 1,
     "target": 1,
-    "effects": [
-      1
-    ]
+    "effect": 1
   },
   {
     "cTitle": "MISSED!",
     "cDescription": "Play this card to counter a \"BANG!\" action against you",
     "suit": 1,
     "number": 1,
-    "target": 1,
-    "effects": [
-      1
-    ]
+    "target": 5,
+    "effect": 2
   }
 ]

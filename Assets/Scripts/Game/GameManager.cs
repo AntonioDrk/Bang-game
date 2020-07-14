@@ -5,6 +5,7 @@ using System.Linq;
 using Game.Cards;
 using Photon.Pun;
 using UnityEngine;
+using UnityEngine.Playables;
 using Random = UnityEngine.Random;
 
 public class GameManager : MonoBehaviour
@@ -207,21 +208,17 @@ public class GameManager : MonoBehaviour
         charactersDistributed = true;
     }
 
-    public int GetPlayerTurnId()
-    {
-        return GameSetup.instance.playerSeats[currentTurn];
-    }
-
-    public string GetPlayerNameTurn()
-    {
-        return GameSetup.instance.GetPlayerObjectAtSeat(currentTurn).GetComponent<PhotonView>().Owner.NickName;
-    }
-
     [PunRPC]
-    public void NextTurn()
+    public void RPC_NextTurn()
     {
+        ApplyCardsToPlayers();
+        
+        GameSetup.instance.GetPlayerObjectAtSeat(currentTurn).GetComponent<PlayerManager>().SetTurn(false);
+        
         currentTurn++;
         currentTurn %= GameSetup.instance.playerSeats.Length;
+        
+        GameSetup.instance.GetPlayerObjectAtSeat(currentTurn).GetComponent<PlayerManager>().SetTurn(true);
         
         // Check if the we're the local player and it's our turn
         // If it is then show YOURS otherwise, from a different
@@ -327,9 +324,10 @@ public class GameManager : MonoBehaviour
         MoveCardObjectToDrawPile(cardObject, drawPileCards.Count - 1);
     }
     
+    // Early testing function, not really used anymore
+    // TODO: Remove this
     private void GenerateRandomDrawCards(int numberOfCards)
     {
-        // TODO: This function should generate all the cards that can be drawn
         for (int i = 0; i < numberOfCards; i++)
         {
             PlayableCard card = CardGeneration.GenerateRandomPlayableCard();
@@ -360,7 +358,93 @@ public class GameManager : MonoBehaviour
         float cardHeight = cardObject.GetComponent<MeshRenderer>().bounds.size.y;
         ResizeDrawCollider(cardHeight);
     }
+    
+    /// <summary>
+    /// Used when a card is played, it moves the card object to the selected player area.
+    /// It is called from an RPC, so this runs on all clients.
+    /// </summary>
+    /// <param name="cardObject">The card object</param>
+    /// <param name="cardLogic">The card logic</param>
+    /// <param name="targetSeat">The seat of the player which is targeted</param>
+    public void MoveCardObjectInFrontOfPlayer(GameObject cardObject, ActionCard cardLogic ,int targetSeat)
+    {
+        Debug.Log("Moving the card to the player spot");
+        
+        cardObject.GetComponent<PhotonView>().TransferOwnership(0);
 
+        // The transform of the "CardTargeting" container
+        Transform cardTargeting = GameSetup.instance.GetPlayerObjectAtSeat(targetSeat).transform.GetChild(4);
+        
+        TargetingStack targetingStack = cardTargeting.gameObject.GetComponent<TargetingStack>();
+        if(targetingStack == null)
+            Debug.LogError("TargetingStack script missing from targeting stack object");
+        
+        cardObject.transform.SetParent(cardTargeting);
+        cardObject.transform.localEulerAngles = new Vector3(80, 180, -0.3f);
+        cardObject.transform.localPosition = new Vector3(0, 0.0023f * targetingStack.GetNumberOfCards(), 0);
+
+        // RESIZING COLLIDER
+        // amnountResized represents the amount it increments each time
+        float amountResized = 0.004f;
+        BoxCollider cardTargetingColl = GameSetup.instance.GetPlayerObjectAtSeat(targetSeat).GetComponent<BoxCollider>();
+        
+        // Resizing the colider
+        cardTargetingColl.size = new Vector3(cardTargetingColl.size.x, cardTargetingColl.size.y + amountResized, cardTargetingColl.size.z);
+        Vector3 origCenter = cardTargetingColl.center;
+        // Re-centering
+        cardTargetingColl.center = new Vector3(origCenter.x, origCenter.y + amountResized/2f, origCenter.z);
+
+        targetingStack.AddCardToStack(cardObject, cardLogic);
+        
+        // TODO: Give that player the possibility to defend themselves if it's a bang card
+        switch (cardLogic.Effect)
+        {
+            case Effect.Bang:
+                // LOGIC FOR PLAYING A BANG CARD
+                break;
+            case Effect.Missed:
+                break;
+            case Effect.DiscardOne:
+                break;
+            case Effect.DrawOne:
+                break;
+            default:
+                Debug.LogError("Tried to play something that I don't know about...");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Loops through all the players and applies each cards action
+    /// </summary>
+    public void ApplyCardsToPlayers()
+    {
+        for (int i = 0; i < GameSetup.instance.NumberOfPlayer; i++)
+        {
+            GameObject playerObject = GameSetup.instance.GetPlayerObjectAtSeat(i);
+            TargetingStack targetingStack = playerObject.transform.GetChild(4).GetComponent<TargetingStack>();
+
+            int bangCards = targetingStack.NumberOfCardsOfEffect(Effect.Bang);
+            int missedCards = targetingStack.NumberOfCardsOfEffect(Effect.Missed);
+            int healthLost = missedCards - bangCards;
+            int currentLives = playerObject.GetComponent<PlayerLogic>().CurrentLives;
+
+            if (healthLost < 0) 
+                playerObject.GetComponent<PlayerLogic>().SetLives(currentLives + healthLost);
+            
+            Debug.LogWarning("Trying to remove the cards in front of " + playerObject.GetComponent<PhotonView>().Owner.NickName);
+            // Go through each card and move them to the discard pile
+            int noCards = targetingStack.GetNumberOfCards();
+            for (int counter = 0; counter < noCards; counter++)
+            {
+                Tuple<GameObject, PlayableCard> tuple = targetingStack.GetTopCard();
+                tuple.Item1.GetComponent<PhotonView>().TransferOwnership(playerObject.GetComponent<PhotonView>().Owner);
+                
+                MoveCardToDiscardPile(tuple.Item2, tuple.Item1);
+            }
+        }
+    }
+    
     /// <summary>
     /// Helper function to resize the collider from the draw pile, so it always is the height of all the cards
     /// </summary>
@@ -383,12 +467,11 @@ public class GameManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Function that is responsible for executing the card action and logic.
-    /// The one calling this function is responsible to delete the local cache of it.
+    /// Moves the card to the discard pile
     /// </summary>
     /// <param name="cardLogic">The card object</param>
     /// <param name="cardObject">The gameobject representation of the card</param>
-    public void PlayCard(PlayableCard cardLogic, GameObject cardObject)
+    public void MoveCardToDiscardPile(PlayableCard cardLogic, GameObject cardObject)
     {
         // TODO:Check the card Logic, execute the action
         
@@ -478,6 +561,25 @@ public class GameManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Gets the OwnerId of the current turns player
+    /// </summary>
+    /// <returns>OwnerId</returns>
+    public int GetPlayerTurnId()
+    {
+        return GameSetup.instance.playerSeats[currentTurn];
+    }
+
+    /// <summary>
+    /// Gets the nickname of the player who's turn is
+    /// </summary>
+    /// <returns>The nickname</returns>
+    public string GetPlayerNameTurn()
+    {
+        return GameSetup.instance.GetPlayerObjectAtSeat(currentTurn).GetComponent<PhotonView>().Owner.NickName;
+    }
+    
+    
+    /// <summary>
     /// Setup function for the GameManager, use this instead of classic "Start()" function
     /// Used for synchronising the start params of the script
     /// </summary>
@@ -495,11 +597,6 @@ public class GameManager : MonoBehaviour
         GeneratePlayableCards();
         ShuffleDrawPile();
         //RPC_DistributeRoles();
-    }
-
-    private void Awake()
-    {
-        
     }
 
     private void Start()

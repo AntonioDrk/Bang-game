@@ -32,6 +32,7 @@ public class GameCanvasManager : MonoBehaviour
 
     public void AddListenerToEndTurnButton(UnityAction action)
     {
+        endTurnBtn.GetComponent<Button>().onClick.RemoveAllListeners();
         endTurnBtn.GetComponent<Button>().onClick.AddListener(action);
     }
 
@@ -53,5 +54,15 @@ public class GameCanvasManager : MonoBehaviour
     public void InfoMessageDrawCard(int amount)
     {
         infoMessage.text = "Draw " + amount + " cards";
+    }
+    
+    public void InfoMessageDiscardCard(int amount)
+    {
+        infoMessage.text = "Discard or play " + amount + " cards first";
+    }
+
+    public void InfoActionCard()
+    {
+        infoMessage.text = "Select the target or use the cancel button do stop the action";
     }
 }
