@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public sealed class CanvasManager : ScriptableObject
+public sealed class CanvasManager : MonoBehaviour
 {
     [Tooltip("The top most parent of all the elements that compose the lobby UI elements.")]
     [SerializeField]
@@ -14,7 +14,7 @@ public sealed class CanvasManager : ScriptableObject
     private CanvasGroup _roomCanvasGroup;
     private CanvasGroup RoomCanvasGroup => _roomCanvasGroup;
 
-    private CanvasGroup _popupCanvasGroup;
+    [SerializeField]private CanvasGroup _popupCanvasGroup;
 
     public CanvasGroup PopupCanvasGroup
     { 
@@ -28,30 +28,14 @@ public sealed class CanvasManager : ScriptableObject
     public readonly string ErrorTitle = "Error!";
     public readonly string InfoTitle = "Info!";
     
-    private static CanvasManager instance;
-    // Thread safety for the singleton
-    private static readonly object padlock = new object();
-
-    private CanvasManager() { }
-
-    public static CanvasManager Instance
-    {
-        get
-        {
-            // Thread safe
-            lock (padlock)
-            {
-                if(instance == null)
-                {
-                    instance = CreateInstance<CanvasManager>();
-                }
-                return instance;
-            }
-        }
-    }
+    public static CanvasManager Instance;
 
     private void Awake()
     {
+        if(Instance != null)
+            Destroy(Instance);
+        Instance = this;
+        
         _lobbyCanvasGroup = GameObject.FindGameObjectWithTag("LobbyCanvas").GetComponent<CanvasGroup>();
         _roomCanvasGroup = GameObject.FindGameObjectWithTag("RoomCanvas").GetComponent<CanvasGroup>();
         _popupCanvasGroup = GameObject.FindGameObjectWithTag("PopupCanvas").GetComponent<CanvasGroup>();
@@ -152,5 +136,26 @@ public sealed class CanvasManager : ScriptableObject
         {
             Debug.LogError("The popup canvas group isn't set!");
         }
+    }
+
+    public void SetStatus(string status, Color color)
+    {
+        if (_lobbyCanvasGroup == null)
+        {
+            Debug.LogError("The lobby canvas group isn't set!");
+            return;
+        }
+
+        //                                                   ListingControlls -> CreateRoomControlls->StatusText
+        TextMeshProUGUI statusMesh = _lobbyCanvasGroup.gameObject.transform.GetChild(0).GetChild(0).GetChild(3)
+            .GetComponent<TextMeshProUGUI>();
+        if (statusMesh == null)
+        {
+            Debug.LogError("Didn't find the status component, check the children count!");
+            return;
+        }
+
+        statusMesh.text = "Status: " + status;
+        statusMesh.color = color;
     }
 }

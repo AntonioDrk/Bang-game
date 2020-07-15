@@ -50,11 +50,16 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     private int _cardToBePlayedIndex;
     private int _numberOfCardsToDraw = 2;
     private int _numberOfCardsInHand = 0;
+    private bool _isDead = false;
+    private bool _gameEneded = false;
     
     
     private GameManager gameManager;
     private GameCanvasManager canvasManager;
     private PlayerLogic playerLogic;
+    
+    [SerializeField] private LifeTokensContainer lifeTokensContainer;
+
     [SerializeField] private TargetingStack targetingStack;
 
     [SerializeField] private Transform handTransform;
@@ -107,7 +112,6 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         }
         else
         {
-            
             _isMyTurn = false;
             _targeting = false;
             _cardToBePlayedIndex = -1;
@@ -117,6 +121,20 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         
     }
 
+    public void SetDeathState()
+    {
+        _isDead = true;
+        // Discard all the cards from the hand
+        RemoveAllCardsFromHand();
+        
+        // TODO: Display a info message that the player is dead
+    }
+
+    public bool IsPlayerDead()
+    {
+        return _isDead;
+    }
+
     /// <summary>
     /// Called when the player presses the button end turn
     /// </summary>
@@ -124,10 +142,11 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     private void RPC_On_EndTurn()
     {
         // Check to see how many cards the player has
-        if (_numberOfCardsInHand > playerLogic.CurrentLives && _photonView.IsMine)    // If more than the number of current lives
+        if (_numberOfCardsInHand > playerLogic.CurrentLives)    // If more than the number of current lives
         {
-            // Make the player discard until the number it's equal with the cards in hand
-            canvasManager.InfoMessageDiscardCard(_numberOfCardsInHand - playerLogic.CurrentLives);
+            if(_photonView.IsMine)
+                // Make the player discard until the number it's equal with the cards in hand
+                canvasManager.InfoMessageDiscardCard(_numberOfCardsInHand - playerLogic.CurrentLives);
         }
         else
         {
@@ -156,6 +175,9 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
 
         canvasManager = GameObject.FindGameObjectWithTag("CanvasManagerGame").GetComponent<GameCanvasManager>();
         
+        if(lifeTokensContainer == null)
+            Debug.LogError("Life tokens container probably isn't linked up in the inspector!");
+        
         if(targetingStack == null)
             Debug.LogError("Targeting stack probably isn't linked up in the inspector!");
         
@@ -170,7 +192,7 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     {
         //TODO: REFACTOR Split the functionality for the love of GOD
         
-        if ( _playerCardActions) return;
+        if ( _playerCardActions || _isDead || _gameEneded) return;
         if(_photonView.IsMine == false) return;
 
         bool mouseInScreen = true;
@@ -239,6 +261,7 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
                     
                     _photonView.RPC("RPC_PlayCard", RpcTarget.AllViaServer, _cardToBePlayedIndex, seatNumberOfTarget);
                     canvasManager.HideInfoMessage();
+                    DisableTargeting();
                 }
             }
             
@@ -350,7 +373,6 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
                     break;
             }
         }
-        
     }
     
     /// <summary>
@@ -360,7 +382,16 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
     {
         _targeting = false;
         _cardToBePlayedIndex = -1;
-        // TODO: Make the end turn button visible back
+
+        gameManager.HideAllTargets();
+        
+        canvasManager.ToggleCancelActionBtn(true);
+        // Only reactivate the end turn button if it actually is your turn
+        if(_isMyTurn)
+            canvasManager.ToggleEndTurnBtn(false);
+        else
+            canvasManager.ToggleEndTurnBtn(true);
+        canvasManager.HideInfoMessage();
     }
 
     /// <summary>
@@ -406,7 +437,7 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
                 RPC_OnCancelBtnPressed(index);
             });
 
-        // If it's our turn, only then let the player play a card
+        // If it's our turn AND we drew the 2 cards, only then let the player play a card
         // Or if we're getting attacked with a bang card
         Button playCardBtn = cardObjectLogic.GetPlayButton();
         switch (((ActionCard) playableCards[index]).Effect)
@@ -419,12 +450,11 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
                         playCardBtn.onClick.AddListener(() =>
                         {
                             RPC_OnPlayBtnPressed(index);
-                            //_photonView.RPC("RPC_OnPlayBtnPressed", RpcTarget.All, index);
                         });
                 }
                 break;
             default:
-                if (_isMyTurn)
+                if (_isMyTurn && _drawnTurnCards)
                 {
                     if (playCardBtn is null == false)
                         playCardBtn.onClick.AddListener(() =>
@@ -435,7 +465,7 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
                 break;
         }
 
-        if (_isMyTurn)
+        if (_isMyTurn && _drawnTurnCards)
         {
             Button discardCardBtn = cardObjectLogic.GetDiscardButton();
             if (discardCardBtn is null == false)
@@ -465,19 +495,25 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
             // Move the card down back in hand 
             MoveCardDownInHand(playableCardsObjects[index], index);
             
-            // TODO: Change the End Turn button to a "Cancel" button to cancel the action, it would reset the _cardToBePlayed and _targeting to false
+            // Show the cancel action button 
+            canvasManager.ToggleCancelActionBtn(false);
+            canvasManager.AddListenerToCancelActionButton(DisableTargeting);
+            // Show the button only if it's our turn
+            if(_isMyTurn)
+                canvasManager.ToggleEndTurnBtn(true);
             
             // Info message that the player needs to select a target or cancel the action
             canvasManager.InfoActionCard();
             
+            // Show the player the available targets
+            gameManager.ShowAvailableTargets(_photonView.Owner.ActorNumber, playableCards[index]);
+            
             // Make the player select target according to the played card
             _targeting = true;
             
-            // After he selects the card, rpc the effect of the card to all players
         }
         else
             Debug.LogError("Card to play wasn't found in the playableCards vector");
-        
     }
 
     /// <summary>
@@ -509,6 +545,7 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
             if(playableCardsObjects[index].GetComponent<CardObjectLogic>().isUpInHand)
                 DecreaseCardSize(playableCardsObjects[index]);
             
+            playableCardsObjects[index].GetComponent<CardObjectLogic>().ActivateOutline(false);
             playableCardsObjects[index].GetComponent<CardObjectLogic>().ShowActionBtns(false);
             gameManager.MoveCardToDiscardPile(playableCards[index], playableCardsObjects[index]);
             //RPC_RemoveCardFromPlayerHand(playableCards[index], index);
@@ -516,6 +553,15 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
             //_photonView.RPC("RPC_RemoveCardFromPlayerHand", RpcTarget.All, index);
             RPC_RemoveCardFromPlayerHand(index);
         }
+    }
+
+    /// <summary>
+    /// Removes all the cards from the player hand
+    /// </summary>
+    private void RemoveAllCardsFromHand()
+    {
+        while (playableCards.Count > 0)
+            RPC_OnDiscardBtnPressed(0);
     }
     
     private void MoveCardUp(GameObject cardToMove)
@@ -596,42 +642,48 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         // Gets the textmeshpro of the title of the player board
         playerBoardCanvas.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = value;
     }
+
+    public void RevealRoleCard()
+    {
+        GameObject roleCardBack = playerBoardCanvas.transform.GetChild(4).gameObject;
+        if(roleCardBack == null)
+            Debug.LogError("COULDN'T FIND THE ROLECARDBACK, CHECK THE CHILD COUNT");
+        else
+            roleCardBack.SetActive(false);
+    }
     
     [PunRPC]
     public void RPC_SetRoleCard(Role role)
     {
         if (_photonView.IsMine || role == Role.Sheriff)
         {
-            Debug.LogWarning("Setting the role text of player " + _photonView.Owner.NickName);
-            // If it's our client then display the role (or if it's the sheriff display it)
-            GameObject roleCardBack = playerBoardCanvas.transform.GetChild(4).gameObject;
-            if(roleCardBack == null)
-                Debug.LogError("COULDN'T FIND THE ROLECARDBACK, CHECK THE CHILD COUNT");
-            else
-                roleCardBack.SetActive(false);
-
-            string temp = "";
-            switch (role)
-            {
-                case Role.Deputy:
-                    temp = "Deputy";
-                    break;
-                case Role.Outlaw:
-                    temp = "Outlaw";
-                    break;
-                case Role.Renegade:
-                    temp = "Renegade";
-                    break;
-                case Role.Sheriff:
-                    temp = "Sheriff";
-                    break;
-                default:
-                    temp = "None";
-                    break;
-            }
-            Debug.LogWarning("Setting the text to " + temp);
-            playerBoardCanvas.transform.GetChild(3).GetChild(0).GetComponent<TextMeshProUGUI>().text = temp;
+            // If it's our client then reveal the role (or if it's the sheriff display it)
+            RevealRoleCard();
         }
+        Debug.LogWarning("Setting the role text of player " + _photonView.Owner.NickName);
+
+        string temp = "";
+        switch (role)
+        {
+            case Role.Deputy:
+                temp = "Deputy";
+                break;
+            case Role.Outlaw:
+                temp = "Outlaw";
+                break;
+            case Role.Renegade:
+                temp = "Renegade";
+                break;
+            case Role.Sheriff:
+                temp = "Sheriff";
+                break;
+            default:
+                temp = "None";
+                break;
+        }
+        Debug.LogWarning("Setting the text to " + temp);
+        playerBoardCanvas.transform.GetChild(3).GetChild(0).GetComponent<TextMeshProUGUI>().text = temp;
+        
     }
 
     public void SetCharacterCard()
@@ -643,7 +695,9 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
             Debug.LogError("Character card wasn't set and we're trying to access it!");
             return;
         }
-        
+
+        playerLogic.CurrentRange = 1;
+
         // Title of the card
         playerBoardCanvas.transform.GetChild(5).GetChild(0).GetComponent<TextMeshProUGUI>().text = chCard.Title;
         
@@ -665,6 +719,7 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         {
             canvasManager.SetLives(playerLogic.CurrentLives);
         }
+        lifeTokensContainer.SetLifeTokens(playerLogic.CurrentLives);
     }
 
     public void DrawStartCards()
@@ -791,6 +846,11 @@ public class PlayerManager : MonoBehaviour, IPunInstantiateMagicCallback
         if(_photonView.IsMine)
             return;
         transform.GetChild(0).gameObject.SetActive(false);
+    }
+
+    public TargetingStack GetTargetingStack()
+    {
+        return targetingStack;
     }
     
     /// <summary>

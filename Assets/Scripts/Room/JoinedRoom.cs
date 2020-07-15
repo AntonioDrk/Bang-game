@@ -16,7 +16,7 @@ public class JoinedRoom : MonoBehaviourPunCallbacks
     [SerializeField] private GameObject _startButton;
     private GameObject PlayerListingPrefab => _playerListingPrefab;
     
-    private bool _leftByChoice = false;
+    public bool _leftByChoice = true;
 
     private List<PlayerListedItem> _playerListedItems = new List<PlayerListedItem>();
     private List<PlayerListedItem> PlayerListedItems

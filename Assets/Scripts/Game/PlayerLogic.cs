@@ -25,7 +25,15 @@ public class PlayerLogic : MonoBehaviour
     // The current lives this player has
     private int _currentLives;
     public int CurrentLives { get => _currentLives; private set => _currentLives = value; }
+    
+    // The current range of the player
+    private int _currentRange;
+    public int CurrentRange { get => _currentRange; set => _currentRange = value < 1 ? 1 : value; }
 
+    // The distance bonus of the player
+    private int _distanceBonus;
+    public int DistanceBonus { get => _distanceBonus; set => _distanceBonus = value < -1 ? -1 : value > 1 ? 1 : value ; }
+        
     // The role associated with the player
     [SerializeField]
     private Role _playerRole;

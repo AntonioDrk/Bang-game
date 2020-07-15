@@ -1,11 +1,14 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Game.Cards;
 using Photon.Pun;
+using Photon.Realtime;
 using UnityEngine;
 using UnityEngine.Playables;
+using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 public class GameManager : MonoBehaviour
@@ -24,6 +27,7 @@ public class GameManager : MonoBehaviour
     private CharacterCard[] characterCards;
     private ActionCard[] actionCards;
     private WeaponCard[] weaponCards;
+    private Role lastRoleDied;
 
     private Role[] rolesForSeats;
     private bool rolesDistributed = false;
@@ -201,6 +205,9 @@ public class GameManager : MonoBehaviour
                 
             
             playerObject.GetComponent<PlayerLogic>().SetLives(nrLives);
+            playerObject.GetComponent<PlayerLogic>().CurrentRange = 1;
+            //TODO: This will depend on the character card as well?
+            playerObject.GetComponent<PlayerLogic>().DistanceBonus = 0;
             playerObject.GetComponent<PlayerManager>().SetCharacterCard();
             playerObject.GetComponent<PlayerManager>().DrawStartCards();
         }
@@ -208,16 +215,25 @@ public class GameManager : MonoBehaviour
         charactersDistributed = true;
     }
 
-    [PunRPC]
+    
     public void RPC_NextTurn()
     {
         ApplyCardsToPlayers();
+        CheckForDeaths();
+        CheckEndGoals();
         
         GameSetup.instance.GetPlayerObjectAtSeat(currentTurn).GetComponent<PlayerManager>().SetTurn(false);
         
         currentTurn++;
         currentTurn %= GameSetup.instance.playerSeats.Length;
-        
+
+        // if a player is dead, skip him
+        while (GameSetup.instance.GetPlayerObjectAtSeat(currentTurn).GetComponent<PlayerManager>().IsPlayerDead())
+        {
+            currentTurn++;
+            currentTurn %= GameSetup.instance.playerSeats.Length;
+        }
+
         GameSetup.instance.GetPlayerObjectAtSeat(currentTurn).GetComponent<PlayerManager>().SetTurn(true);
         
         // Check if the we're the local player and it's our turn
@@ -227,6 +243,82 @@ public class GameManager : MonoBehaviour
             canvasManager.SetTurnText("YOURS");
         else
             canvasManager.SetTurnText(GetPlayerNameTurn());
+    }
+
+    /// <summary>
+    /// Checks if one of the roles won the game
+    /// </summary>
+    private void CheckEndGoals()
+    {
+        int aliveDeputies = 0;
+        int aliveOutlaws = 0;
+        int aliveSheriff = 0;
+        int aliveRenegade = 0;
+
+        for (int i = 0; i < GameSetup.instance.NumberOfOccupiedSeats(); i++)
+        {
+            GameObject playerObject = GameSetup.instance.GetPlayerObjectAtSeat(i);
+            Role playerRole = playerObject.GetComponent<PlayerLogic>().PlayerRole;
+
+            if (!playerObject.GetComponent<PlayerManager>().IsPlayerDead())
+            {
+                switch (playerRole)
+                {
+                    case Role.Deputy:
+                        aliveDeputies++;
+                        break;
+                    case Role.Sheriff:
+                        aliveSheriff++;
+                        break;
+                    case Role.Renegade:
+                        aliveRenegade++;
+                        break;
+                    case Role.Outlaw:
+                        aliveOutlaws++;
+                        break;
+                }
+            }
+        }
+        
+        // All the combinations possible for win conditions
+        if (aliveSheriff > 0 && aliveOutlaws == 0 && aliveRenegade == 0)
+        {
+            canvasManager.DisplayPopup("The sheriff and deputies won the game!");
+        }
+        else
+        {
+            if (aliveOutlaws > 0 && aliveSheriff == 0)
+            {
+                canvasManager.DisplayPopup("The Outlaws have won the game!");
+            }
+            if (aliveRenegade > 0 && aliveOutlaws == 0 
+                                  && aliveDeputies == 0 
+                                  && aliveSheriff == 0 
+                                  && lastRoleDied == Role.Sheriff)
+            {
+                canvasManager.DisplayPopup("The Renegade has won the game!");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if a player died, if he did, all his cards are discarded and show to everyone the role card
+    /// The player can't do anything just watch
+    /// </summary>
+    private void CheckForDeaths()
+    {
+        for (int i = 0; i < GameSetup.instance.NumberOfOccupiedSeats(); i++)
+        {
+            GameObject playerObject = GameSetup.instance.GetPlayerObjectAtSeat(i);
+            int playerLives = playerObject.GetComponent<PlayerLogic>().CurrentLives;
+            bool isPlayerDead = playerObject.GetComponent<PlayerManager>().IsPlayerDead();
+            if (playerLives == 0 && !isPlayerDead)
+            {
+                lastRoleDied = playerObject.GetComponent<PlayerLogic>().PlayerRole;
+                playerObject.GetComponent<PlayerManager>().SetDeathState();
+                playerObject.GetComponent<PlayerManager>().RevealRoleCard();
+            }
+        }
     }
 
     /// <summary>
@@ -323,20 +415,112 @@ public class GameManager : MonoBehaviour
         
         MoveCardObjectToDrawPile(cardObject, drawPileCards.Count - 1);
     }
-    
-    // Early testing function, not really used anymore
-    // TODO: Remove this
-    private void GenerateRandomDrawCards(int numberOfCards)
-    {
-        for (int i = 0; i < numberOfCards; i++)
-        {
-            PlayableCard card = CardGeneration.GenerateRandomPlayableCard();
-            GameObject cardObject = Instantiate(cardPrefab);
-            
-            drawPileCards.Add(card);
-            drawPileObjects.Add(cardObject);
 
-            MoveCardObjectToDrawPile(cardObject, i);
+    public void ShowAvailableTargets(int perspectiveActorNumber, PlayableCard cardLogic)
+    {
+        int perspectivePlayerSeat = GameSetup.instance.GetPlayerSeatWithActorNumber(perspectiveActorNumber);
+        GameObject playerObject = GameSetup.instance.GetPlayerObjectAtSeat(perspectivePlayerSeat);
+        
+        Debug.LogWarning("Displaying available targets");
+        
+        switch ( ((ActionCard)cardLogic).Target )
+        {
+            case Target.Yourself:
+                // Show the highlight only of his
+                playerObject.GetComponent<PlayerManager>().GetTargetingStack().ToggleHighlights(false);
+                break;
+            case Target.AnyPlayer:
+                // Show highlight of all players excluding his
+                for (int i = 0; i < GameSetup.instance.NumberOfPlayer; i++)
+                {
+                    if (perspectivePlayerSeat != i)
+                    {
+                        GameObject ply = GameSetup.instance.GetPlayerObjectAtSeat(i);
+                        ply.GetComponent<PlayerManager>().GetTargetingStack().ToggleHighlights(false);
+                    }
+                }
+                break;
+            case Target.RangeOne:
+                // Show highlight of the players next to him
+                
+                // Get the nearest left player (skip the ones that are dead or disconnect)
+                int leftNeighSeat = GameSetup.instance.mod((perspectivePlayerSeat - 1), GameSetup.instance.NumberOfPlayer);
+                GameObject leftNeighObject = GameSetup.instance.GetPlayerObjectAtSeat(leftNeighSeat);
+                while (leftNeighObject == null || leftNeighObject.GetComponent<PlayerManager>().IsPlayerDead())
+                {
+                    leftNeighSeat = GameSetup.instance.mod((leftNeighSeat - 1),GameSetup.instance.NumberOfPlayer);
+                    leftNeighObject = GameSetup.instance.GetPlayerObjectAtSeat(leftNeighSeat);
+                }
+                
+                // Get the nearest right player (skip the ones that are dead or disconnect)
+                int rightNeighSeat = GameSetup.instance.mod((perspectivePlayerSeat + 1) , GameSetup.instance.NumberOfPlayer);
+                GameObject rightNeighObject = GameSetup.instance.GetPlayerObjectAtSeat(rightNeighSeat);
+                while (rightNeighObject == null || rightNeighObject.GetComponent<PlayerManager>().IsPlayerDead())
+                {
+                    rightNeighSeat = GameSetup.instance.mod((leftNeighSeat - 1) , GameSetup.instance.NumberOfPlayer);
+                    rightNeighObject = GameSetup.instance.GetPlayerObjectAtSeat(rightNeighSeat);
+                }
+                
+                // If there are no distance bonuses for the leftNeighbour then highlight him
+                if(leftNeighObject.GetComponent<PlayerLogic>().DistanceBonus <= 0)
+                    leftNeighObject.GetComponent<PlayerManager>().GetTargetingStack().ToggleHighlights(false);
+                
+                // If there are no distance bonuses for the right neighbour then highlight him
+                if(rightNeighObject.GetComponent<PlayerLogic>().DistanceBonus <= 0)
+                    rightNeighObject.GetComponent<PlayerManager>().GetTargetingStack().ToggleHighlights(false);
+                
+                break;
+            case Target.InWeaponRange:
+                // Show highlight of the players in weapon range
+                Debug.LogWarning("Highlighting players in weapon range");
+
+                // Cache all the seats that are alive and in game (this helps "skip" over the dead players)
+                List<int> SeatsAlive = new List<int>();
+                for (int i = 0; i < GameSetup.instance.NumberOfPlayer; i++)
+                {
+                    GameObject ply = GameSetup.instance.GetPlayerObjectAtSeat(i);
+                    // if the player is dead or disconnected skip him
+                    if(ply == null || ply.GetComponent<PlayerManager>().IsPlayerDead()) continue;
+                    
+                    SeatsAlive.Add(i);
+                }
+
+                int weaponRange = playerObject.GetComponent<PlayerLogic>().CurrentRange;
+                for (int i = 0; i < SeatsAlive.Count; i++ )
+                {
+                    if (SeatsAlive[i] != perspectivePlayerSeat) // Don't bother calculating distance to us
+                    {
+                        GameObject ply = GameSetup.instance.GetPlayerObjectAtSeat(SeatsAlive[i]);
+                        // if the player is dead or disconnected skip him
+                        if(ply == null || ply.GetComponent<PlayerManager>().IsPlayerDead()) continue;
+                        
+                        // Takes the distance anti-clockwise and clockwise to the seat SeatsAlive[i]
+                        int distanceR = GameSetup.instance.mod((SeatsAlive[i] - perspectivePlayerSeat), SeatsAlive.Count);
+                        int distanceL = GameSetup.instance.mod((perspectivePlayerSeat - SeatsAlive[i]), SeatsAlive.Count);
+                        // Takes the shortest distance of the two
+                        int shortestDistance = Math.Min(distanceL, distanceR);
+                        // Adds the bonus distance of that player
+                        shortestDistance += ply.GetComponent<PlayerLogic>().DistanceBonus;
+                        // If our weapon range reaches the player highlight it
+                        if(weaponRange >= shortestDistance)
+                            ply.GetComponent<PlayerManager>().GetTargetingStack().ToggleHighlights(false);
+                    }
+                }
+                break;
+            default:
+                Debug.LogError("Tried to play a card with a target not implemented!");
+                break;
+        }
+    }
+
+    public void HideAllTargets()
+    {
+        Debug.LogWarning("Hiding all highlights for targeting");
+        for (int i = 0; i < GameSetup.instance.NumberOfPlayer; i++)
+        {
+            GameObject ply = GameSetup.instance.GetPlayerObjectAtSeat(i);
+            if(ply == null) continue;
+            ply.GetComponent<PlayerManager>().GetTargetingStack().ToggleHighlights(true);
         }
     }
 
@@ -422,6 +606,7 @@ public class GameManager : MonoBehaviour
         for (int i = 0; i < GameSetup.instance.NumberOfPlayer; i++)
         {
             GameObject playerObject = GameSetup.instance.GetPlayerObjectAtSeat(i);
+            if(playerObject == null) continue;
             TargetingStack targetingStack = playerObject.transform.GetChild(4).GetComponent<TargetingStack>();
 
             int bangCards = targetingStack.NumberOfCardsOfEffect(Effect.Bang);
@@ -443,6 +628,28 @@ public class GameManager : MonoBehaviour
                 MoveCardToDiscardPile(tuple.Item2, tuple.Item1);
             }
         }
+    }
+
+    public void ReturnToMainMenu()
+    {
+        Destroy(Launcher.instance);
+        
+        StartCoroutine(DisconnectAndLoad());
+    }
+
+    /// <summary>
+    /// Disconnects the player from the room and afterwards changes the scene to the main menu
+    /// </summary>
+    /// <returns></returns>
+    IEnumerator DisconnectAndLoad()
+    {
+        if(PhotonNetwork.InRoom)
+            PhotonNetwork.LeaveRoom();
+        
+        while (PhotonNetwork.InRoom)
+            yield return null;
+        
+        SceneManager.LoadScene(0);
     }
     
     /// <summary>
@@ -589,7 +796,7 @@ public class GameManager : MonoBehaviour
     {
         Random.InitState(seed);
         _generatedSeed = seed;
-        
+
         Debug.LogWarning("My gamemanager seed is: " + _generatedSeed);
         
         LoadCharacterCards();

@@ -9,6 +9,10 @@ using UnityEngine;
 /// </summary>
 public class TargetingStack : MonoBehaviour
 {
+
+    [SerializeField] private GameObject placementHighlight;
+    [SerializeField] private BoxCollider targetCollider;
+    
     private List<PlayableCard> cards;
     private List<GameObject> cardObjects;
 
@@ -16,6 +20,8 @@ public class TargetingStack : MonoBehaviour
     {
         cards = new List<PlayableCard>();
         cardObjects = new List<GameObject>();
+        if (targetCollider == false)
+            Debug.LogError("Link the target collider in the inspector!");
     }
     
     public void AddCardToStack(GameObject cardObject, PlayableCard cardLogic)
@@ -66,7 +72,13 @@ public class TargetingStack : MonoBehaviour
         }
         return false;
     }
-    
+
+    public void ToggleHighlights(bool hidden)
+    {
+        targetCollider.enabled = !hidden;
+        placementHighlight.SetActive(!hidden);
+    }
+
     public int GetNumberOfCards()
     {
         return cardObjects.Count;
